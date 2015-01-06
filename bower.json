@@ -1,0 +1,9 @@
+{
+  "name": "purescript-webgl-examples",
+  "version": "0.1.0",
+  "dependencies": {
+    "purescript-webgl" : "*",
+    "purescript-datetime" : "*"
+  },
+  "license": "Apache-2.0"
+}
