@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/jutaro/purescript-webgl-examples.svg?branch=master)](https://travis-ci.org/jutaro/purescript-webgl-examples)
+
 Examples for [purescript-webgl](https://github.com/jutaro/purescript-webgl)
 
 The first n lessons form the page [learningwebgl](http://learningwebgl.com/blog/) ported to
