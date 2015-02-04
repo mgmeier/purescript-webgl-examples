@@ -207,7 +207,6 @@ cvi = [
 
 type State bindings = {
                 context :: WebGLContext,
-
                 bindings :: {webGLProgram :: WebGLProg | bindings},
 
                 cubeVertices :: Buffer T.Float32,
@@ -261,19 +260,21 @@ main = do
                           ySpeed : 1.0,
                           z : (-5.0),
                           currentlyPressedKeys : []
-                        } 
+                        } :: State MyBindings
             runST do
               stRef <- newSTRef state
               onKeyDown (handleKeyD stRef)
-              onKeyUp (handleKeyU stRef)
-              tick stRef
+--              onKeyUp (handleKeyU stRef)
+--              tick (stRef :: STRef _ (State MyBindings))
+              return unit
 
 tick :: forall h eff. STRef h (State MyBindings) ->  EffWebGL (st :: ST h, trace :: Trace, now :: Now |eff) Unit
 tick stRef = do
-  drawScene stRef
-  handleKeys stRef
-  animate stRef
-  requestAnimationFrame (tick stRef)
+  return unit
+--  drawScene stRef
+--  handleKeys stRef
+--  animate stRef
+--  requestAnimationFrame (tick stRef)
 
 animate ::  forall h eff . STRef h (State MyBindings) -> EffWebGL (st :: ST h, now :: Now |eff) Unit
 animate stRef = do
