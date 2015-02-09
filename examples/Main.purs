@@ -1,4 +1,4 @@
--- needs todays compiler fixes, to allow underscores in constructor names.
+-- needs psc >= 0.6.6
 -- need to start chrome with --allow-file-access-from-files to be able to load local files
 -- Example 7: Lightning (Open with index7.html)
 module Main where
@@ -264,17 +264,15 @@ main = do
             runST do
               stRef <- newSTRef state
               onKeyDown (handleKeyD stRef)
---              onKeyUp (handleKeyU stRef)
---              tick (stRef :: STRef _ (State MyBindings))
-              return unit
+              onKeyUp (handleKeyU stRef)
+              tick (stRef :: STRef _ (State MyBindings))
 
 tick :: forall h eff. STRef h (State MyBindings) ->  EffWebGL (st :: ST h, trace :: Trace, now :: Now |eff) Unit
 tick stRef = do
-  return unit
---  drawScene stRef
---  handleKeys stRef
---  animate stRef
---  requestAnimationFrame (tick stRef)
+  drawScene stRef
+  handleKeys stRef
+  animate stRef
+  requestAnimationFrame (tick stRef)
 
 animate ::  forall h eff . STRef h (State MyBindings) -> EffWebGL (st :: ST h, now :: Now |eff) Unit
 animate stRef = do

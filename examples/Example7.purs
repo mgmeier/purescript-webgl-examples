@@ -1,4 +1,4 @@
--- needs todays compiler fixes, to allow underscores in constructor names.
+-- needs psc >= 0.6.6
 -- need to start chrome with --allow-file-access-from-files to be able to load local files
 -- Example 7: Lightning (Open with index7.html)
 module Main where
@@ -26,10 +26,13 @@ import Data.Maybe.Unsafe (fromJust)
 import Data.Array
 import Math
 
-shaders :: Shaders {aVertexPosition :: Attribute Vec3, aVertexNormal :: Attribute Vec3,aTextureCoord :: Attribute Vec2,
+type MyBindings =
+              (aVertexPosition :: Attribute Vec3, aVertexNormal :: Attribute Vec3,aTextureCoord :: Attribute Vec2,
               uPMatrix :: Uniform Mat4, uMVMatrix:: Uniform Mat4, uNMatrix:: Uniform Mat4, uSampler :: Uniform Sampler2D,
               uUseLighting :: Uniform Bool, uAmbientColor :: Uniform Vec3, uLightingDirection :: Uniform Vec3,
-              uDirectionalColor :: Uniform Vec3}
+              uDirectionalColor :: Uniform Vec3)
+
+shaders :: Shaders (Object MyBindings)
 shaders = Shaders
 
   """
@@ -202,21 +205,9 @@ cvi = [
         20, 21, 22,   20, 22, 23  -- Left face
       ]
 
-type State = {
+type State bindings = {
                 context :: WebGLContext,
-                shaderProgram :: WebGLProg,
-
-                aVertexPosition :: Attribute Vec3,
-                aVertexNormal :: Attribute Vec3,
-                aTextureCoord :: Attribute Vec2,
-                uPMatrix :: Uniform Mat4,
-                uMVMatrix :: Uniform Mat4,
-                uNMatrix :: Uniform Mat4,
-                uSampler :: Uniform Sampler2D,
-                uUseLighting :: Uniform Bool,
-                uAmbientColor :: Uniform Vec3,
-                uLightingDirection :: Uniform Vec3,
-                uDirectionalColor :: Uniform Vec3,
+                bindings :: {webGLProgram :: WebGLProg | bindings},
 
                 cubeVertices :: Buffer T.Float32,
                 cubeVerticesNormal :: Buffer T.Float32,
@@ -254,26 +245,14 @@ main = do
           texture2DFor "crate.gif" MIPMAP \texture -> do
             let state = {
                           context : context,
-                          shaderProgram : bindings.webGLProgram,
-
-                          aVertexPosition : bindings.aVertexPosition,
-                          aVertexNormal : bindings.aVertexNormal,
-                          aTextureCoord : bindings.aTextureCoord,
-                          uPMatrix : bindings.uPMatrix,
-                          uMVMatrix : bindings.uMVMatrix,
-                          uNMatrix : bindings.uNMatrix,
-                          uSampler : bindings.uSampler,
-                          uUseLighting : bindings.uUseLighting,
-                          uAmbientColor : bindings.uAmbientColor,
-                          uLightingDirection : bindings.uLightingDirection,
-                          uDirectionalColor : bindings.uDirectionalColor,
+                          bindings : bindings,
 
                           cubeVertices : cubeVertices,
                           cubeVerticesNormal : cubeVerticesNormal,
                           textureCoords : textureCoords,
                           cubeVertexIndices : cubeVertexIndices,
                           texture : texture,
-                          lastTime : (Nothing :: Maybe Number),
+                          lastTime : Nothing,
 
                           xRot : 0,
                           xSpeed : 1.0,
@@ -281,21 +260,21 @@ main = do
                           ySpeed : 1.0,
                           z : (-5.0),
                           currentlyPressedKeys : []
-                        }
+                        } :: State MyBindings
             runST do
               stRef <- newSTRef state
               onKeyDown (handleKeyD stRef)
               onKeyUp (handleKeyU stRef)
-              tick stRef
+              tick (stRef :: STRef _ (State MyBindings))
 
-tick :: forall h eff. STRef h State ->  EffWebGL (st :: ST h, trace :: Trace, now :: Now |eff) Unit
+tick :: forall h eff. STRef h (State MyBindings) ->  EffWebGL (st :: ST h, trace :: Trace, now :: Now |eff) Unit
 tick stRef = do
   drawScene stRef
   handleKeys stRef
   animate stRef
   requestAnimationFrame (tick stRef)
 
-animate ::  forall h eff . STRef h State -> EffWebGL (st :: ST h, now :: Now |eff) Unit
+animate ::  forall h eff . STRef h (State MyBindings) -> EffWebGL (st :: ST h, now :: Now |eff) Unit
 animate stRef = do
   s <- readSTRef stRef
   timeNow <- liftM1 toEpochMilliseconds now
@@ -309,7 +288,7 @@ animate stRef = do
                               })
   return unit
 
-drawScene :: forall h eff . STRef h State -> EffWebGL (st :: ST h |eff) Unit
+drawScene :: forall h eff . STRef h (State MyBindings) -> EffWebGL (st :: ST h |eff) Unit
 drawScene stRef = do
   s <- readSTRef stRef
   canvasWidth <- getCanvasWidth s.context
@@ -318,48 +297,48 @@ drawScene stRef = do
   clear [COLOR_BUFFER_BIT, DEPTH_BUFFER_BIT]
 
   let pMatrix = M.makePerspective 45 (canvasWidth / canvasHeight) 0.1 100.0
-  setUniformFloats s.uPMatrix (M.toArray pMatrix)
+  setUniformFloats s.bindings.uPMatrix (M.toArray pMatrix)
 
   let mvMatrix =
       M.rotate (degToRad s.yRot) (V.vec3' [0, 1, 0])
         $ M.rotate (degToRad s.xRot) (V.vec3' [1, 0, 0])
           $ M.translate  (V.vec3 0.0 0.0 s.z)
             $ M.identity
-  setUniformFloats s.uMVMatrix (M.toArray mvMatrix)
+  setUniformFloats s.bindings.uMVMatrix (M.toArray mvMatrix)
 
   let nMatrix = fromJust $ M.normalFromMat4 mvMatrix
-  setUniformFloats s.uNMatrix (M.toArray nMatrix)
+  setUniformFloats s.bindings.uNMatrix (M.toArray nMatrix)
 
   setLightning s
 
-  bindPointBuf s.cubeVertices s.aVertexPosition
-  bindPointBuf s.cubeVerticesNormal s.aVertexNormal
-  bindPointBuf s.textureCoords s.aTextureCoord
-  withTexture2D s.texture 0 s.uSampler 0
+  bindPointBuf s.cubeVertices s.bindings.aVertexPosition
+  bindPointBuf s.cubeVerticesNormal s.bindings.aVertexNormal
+  bindPointBuf s.textureCoords s.bindings.aTextureCoord
+  withTexture2D s.texture 0 s.bindings.uSampler 0
   bindBuf s.cubeVertexIndices
   drawElements TRIANGLES s.cubeVertexIndices.bufferSize
 
-setLightning :: forall eff. State -> EffWebGL eff Unit
+setLightning :: forall eff. (State MyBindings) -> EffWebGL eff Unit
 setLightning s = do
   lighting <- getElementByIdBool "lighting"
-  setUniformBooleans s.uUseLighting [lighting]
+  setUniformBooleans s.bindings.uUseLighting [lighting]
   if lighting
     then do
       ar <- getElementByIdFloat "ambientR"
       ag <- getElementByIdFloat "ambientG"
       ab <- getElementByIdFloat "ambientB"
-      setUniformFloats s.uAmbientColor [ar, ag, ab]
+      setUniformFloats s.bindings.uAmbientColor [ar, ag, ab]
       lx <- getElementByIdFloat "lightDirectionX"
       ly <- getElementByIdFloat "lightDirectionY"
       lz <- getElementByIdFloat "lightDirectionZ"
       let v = V.scale (-1)
                   $ V.normalize
                     $ V.vec3 lx ly lz
-      setUniformFloats s.uLightingDirection (V.toArray v)
+      setUniformFloats s.bindings.uLightingDirection (V.toArray v)
       dr <- getElementByIdFloat "directionalR"
       dg <- getElementByIdFloat "directionalG"
       db <- getElementByIdFloat "directionalB"
-      setUniformFloats s.uDirectionalColor [dr, dg, db]
+      setUniformFloats s.bindings.uDirectionalColor [dr, dg, db]
     else return unit
 
 
@@ -391,7 +370,7 @@ degToRad x = x/180*pi
 
 -- * Key handling
 
-handleKeys ::  forall h eff . STRef h State -> EffWebGL (trace :: Trace, st :: ST h |eff) Unit
+handleKeys ::  forall h eff . STRef h (State MyBindings) -> EffWebGL (trace :: Trace, st :: ST h |eff) Unit
 handleKeys stRef = do
   s <- readSTRef stRef
   if null s.currentlyPressedKeys
@@ -420,7 +399,7 @@ handleKeys stRef = do
         trace (show s.currentlyPressedKeys)
         return unit
 
-handleKeyD :: forall h eff. STRef h State -> Event -> Eff (st :: ST h, trace :: Trace | eff) Unit
+handleKeyD :: forall h eff. STRef h (State MyBindings) -> Event -> Eff (st :: ST h, trace :: Trace | eff) Unit
 handleKeyD stRef event = do
   trace "handleKeyDown"
   let key = eventGetKeyCode event
@@ -432,7 +411,7 @@ handleKeyD stRef event = do
 --  trace (show s.currentlyPressedKeys)
   return unit
 
-handleKeyU :: forall h eff. STRef h State -> Event -> Eff (st :: ST h, trace :: Trace | eff) Unit
+handleKeyU :: forall h eff. STRef h (State MyBindings) -> Event -> Eff (st :: ST h, trace :: Trace | eff) Unit
 handleKeyU stRef event = do
   trace "handleKeyUp"
   let key = eventGetKeyCode event
