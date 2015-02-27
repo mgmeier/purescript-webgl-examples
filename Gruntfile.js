@@ -41,6 +41,10 @@ module.exports = function(grunt) {
       src: ["examples/Example7.purs","<%=srcFiles%>"],
         dest: "dist/Main.js"
       },
+      example8: {
+      src: ["examples/Example8.purs","<%=srcFiles%>"],
+        dest: "dist/Main.js"
+      },
       all: {
       src: ["<%=srcFiles%>","examples/Main.purs"],
         dest: "dist/Main.js"
@@ -66,4 +70,5 @@ module.exports = function(grunt) {
   grunt.registerTask("example5", ["psc:example5"]);
   grunt.registerTask("example6", ["psc:example6"]);
   grunt.registerTask("example7", ["psc:example7"]);
+  grunt.registerTask("example8", ["psc:example8"]);
 };
