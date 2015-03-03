@@ -1,6 +1,6 @@
 -- needs psc >= 0.6.6
 -- need to start chrome with --allow-file-access-from-files to be able to load local files
--- Example 7: Lightning (Open with index7.html)
+-- Example 8: Blending (Open with index8.html)
 module Main where
 
 import Control.Monad.Eff.WebGL
@@ -12,6 +12,7 @@ import qualified Data.Matrix4 as M
 import qualified Data.Matrix3 as M
 import qualified Data.Vector as V
 import qualified Data.Vector3 as V
+import qualified Data.TypedArray.Types as T
 import qualified Data.TypedArray as T
 import Control.Monad.Eff.Alert
 

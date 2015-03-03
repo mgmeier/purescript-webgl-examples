@@ -12,6 +12,7 @@ import qualified Data.Matrix4 as M
 import qualified Data.Matrix3 as M
 import qualified Data.Vector as V
 import qualified Data.Vector3 as V
+import qualified Data.TypedArray.Types as T
 import qualified Data.TypedArray as T
 import Control.Monad.Eff.Alert
 
