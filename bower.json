@@ -3,7 +3,9 @@
   "version": "0.1.0",
   "dependencies": {
     "purescript-webgl" : "*",
-    "purescript-datetime" : "*"
+    "purescript-datetime" : "*",
+    "purescript-random" : "*",
+    "purescript-extensions" : "*"
   },
   "license": "Apache-2.0"
 }
