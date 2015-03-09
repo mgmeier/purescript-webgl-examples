@@ -1,6 +1,6 @@
 -- needs psc >= 0.6.6
 -- need to start chrome with --allow-file-access-from-files to be able to load local files
--- Example 7: Lightning (Open with index7.html)
+-- Example 9: Moving Objects (Open with index9.html)
 module Main where
 
 import Control.Monad.Eff.WebGL
@@ -10,336 +10,303 @@ import Graphics.WebGLTexture
 import qualified Data.Matrix as M
 import qualified Data.Matrix4 as M
 import qualified Data.Matrix3 as M
+import qualified Data.ST.Matrix as M
+import qualified Data.ST.Matrix4 as M
 import qualified Data.Vector as V
 import qualified Data.Vector3 as V
+import qualified Data.TypedArray.Types as T
 import qualified Data.TypedArray as T
 import Control.Monad.Eff.Alert
+import Extensions (mapM)
 
 import Control.Monad.Eff
+import Control.Monad.Eff.Random
 import Control.Monad
 import Control.Monad.ST
 import Debug.Trace
 import Data.Tuple
+import Data.Traversable (for)
 import Data.Date
 import Data.Maybe
 import Data.Maybe.Unsafe (fromJust)
 import Data.Array
+import Data.Array.ST
+import Data.Array.ExtendedRepl
 import Math
+import Prelude.Unsafe (unsafeIndex)
+
+
+starCount   = 50        :: Number
+spinStep    = 0.1       :: Number
+
+data MyState
 
 type MyBindings =
-              (aVertexPosition :: Attribute Vec3, aVertexNormal :: Attribute Vec3,aTextureCoord :: Attribute Vec2,
-              uPMatrix :: Uniform Mat4, uMVMatrix:: Uniform Mat4, uNMatrix:: Uniform Mat4, uSampler :: Uniform Sampler2D,
-              uUseLighting :: Uniform Bool, uAmbientColor :: Uniform Vec3, uLightingDirection :: Uniform Vec3,
-              uDirectionalColor :: Uniform Vec3)
+              ( aVertexPosition :: Attribute Vec3
+              , aTextureCoord   :: Attribute Vec2
+              , uPMatrix        :: Uniform Mat4
+              , uMVMatrix       :: Uniform Mat4
+              , uSampler        :: Uniform Sampler2D
+              , uColor          :: Uniform Vec3
+              )
 
 shaders :: Shaders (Object MyBindings)
 shaders = Shaders
 
   """
-      precision mediump float;
+        precision mediump float;
 
-      varying vec2 vTextureCoord;
-      varying vec3 vLightWeighting;
+        varying vec2 vTextureCoord;
 
-      uniform sampler2D uSampler;
+        uniform sampler2D uSampler;
+        uniform vec3 uColor;
 
-      void main(void) {
-          vec4 textureColor = texture2D(uSampler, vec2(vTextureCoord.s, vTextureCoord.t));
-          gl_FragColor = vec4(textureColor.rgb * vLightWeighting, textureColor.a);
-      }
+        void main(void) {
+            vec4 textureColor = texture2D(uSampler, vec2(vTextureCoord.s, vTextureCoord.t));
+            gl_FragColor = textureColor * vec4(uColor, 1.0);
+        }
   """
 
   """
-      attribute vec3 aVertexPosition;
-      attribute vec3 aVertexNormal;
-      attribute vec2 aTextureCoord;
+        attribute vec3 aVertexPosition;
+        attribute vec2 aTextureCoord;
 
-      uniform mat4 uMVMatrix;
-      uniform mat4 uPMatrix;
-      uniform mat3 uNMatrix;
+        uniform mat4 uMVMatrix;
+        uniform mat4 uPMatrix;
 
-      uniform vec3 uAmbientColor;
+        varying vec2 vTextureCoord;
 
-      uniform vec3 uLightingDirection;
-      uniform vec3 uDirectionalColor;
-
-      uniform bool uUseLighting;
-
-      varying vec2 vTextureCoord;
-      varying vec3 vLightWeighting;
-
-      void main(void) {
-          gl_Position = uPMatrix * uMVMatrix * vec4(aVertexPosition, 1.0);
-          vTextureCoord = aTextureCoord;
-
-          if (!uUseLighting) {
-              vLightWeighting = vec3(1.0, 1.0, 1.0);
-          } else {
-              vec3 transformedNormal = uNMatrix * aVertexNormal;
-              float directionalLightWeighting = max(dot(transformedNormal, uLightingDirection), 0.0);
-              vLightWeighting = uAmbientColor + uDirectionalColor * directionalLightWeighting;
-          }
-      }
+        void main(void) {
+            gl_Position = uPMatrix * uMVMatrix * vec4(aVertexPosition, 1.0);
+            vTextureCoord = aTextureCoord;
+        }
   """
-
-cubeV = [
-        -- Front face
-        -1.0, -1.0,  1.0,
-         1.0, -1.0,  1.0,
-         1.0,  1.0,  1.0,
-        -1.0,  1.0,  1.0,
-
-        -- Back face
-        -1.0, -1.0, -1.0,
-        -1.0,  1.0, -1.0,
-         1.0,  1.0, -1.0,
-         1.0, -1.0, -1.0,
-
-        -- Top face
-        -1.0,  1.0, -1.0,
-        -1.0,  1.0,  1.0,
-         1.0,  1.0,  1.0,
-         1.0,  1.0, -1.0,
-
-        -- Bottom face
-        -1.0, -1.0, -1.0,
-         1.0, -1.0, -1.0,
-         1.0, -1.0,  1.0,
-        -1.0, -1.0,  1.0,
-
-        -- Right face
-         1.0, -1.0, -1.0,
-         1.0,  1.0, -1.0,
-         1.0,  1.0,  1.0,
-         1.0, -1.0,  1.0,
-
-        -- Left face
-        -1.0, -1.0, -1.0,
-        -1.0, -1.0,  1.0,
-        -1.0,  1.0,  1.0,
-        -1.0,  1.0, -1.0
-      ]
-
-vertexNormals = [
-        -- Front face
-         0.0,  0.0,  1.0,
-         0.0,  0.0,  1.0,
-         0.0,  0.0,  1.0,
-         0.0,  0.0,  1.0,
-
-        -- Back face
-         0.0,  0.0, -1.0,
-         0.0,  0.0, -1.0,
-         0.0,  0.0, -1.0,
-         0.0,  0.0, -1.0,
-
-        -- Top face
-         0.0,  1.0,  0.0,
-         0.0,  1.0,  0.0,
-         0.0,  1.0,  0.0,
-         0.0,  1.0,  0.0,
-
-        -- Bottom face
-         0.0, -1.0,  0.0,
-         0.0, -1.0,  0.0,
-         0.0, -1.0,  0.0,
-         0.0, -1.0,  0.0,
-
-        -- Right face
-         1.0,  0.0,  0.0,
-         1.0,  0.0,  0.0,
-         1.0,  0.0,  0.0,
-         1.0,  0.0,  0.0,
-
-        -- Left face
-        -1.0,  0.0,  0.0,
-        -1.0,  0.0,  0.0,
-        -1.0,  0.0,  0.0,
-        -1.0,  0.0,  0.0
-      ]
-
-texCoo = [
-          -- Front face
-          0.0, 0.0,
-          1.0, 0.0,
-          1.0, 1.0,
-          0.0, 1.0,
-
-          -- Back face
-          1.0, 0.0,
-          1.0, 1.0,
-          0.0, 1.0,
-          0.0, 0.0,
-
-          -- Top face
-          0.0, 1.0,
-          0.0, 0.0,
-          1.0, 0.0,
-          1.0, 1.0,
-
-          -- Bottom face
-          1.0, 1.0,
-          0.0, 1.0,
-          0.0, 0.0,
-          1.0, 0.0,
-
-          -- Right face
-          1.0, 0.0,
-          1.0, 1.0,
-          0.0, 1.0,
-          0.0, 0.0,
-
-          -- Left face
-          0.0, 0.0,
-          1.0, 0.0,
-          1.0, 1.0,
-          0.0, 1.0
-        ]
-
-cvi = [
-        0, 1, 2,      0, 2, 3,    -- Front face
-        4, 5, 6,      4, 6, 7,    -- Back face
-        8, 9, 10,     8, 10, 11,  -- Top face
-        12, 13, 14,   12, 14, 15, -- Bottom face
-        16, 17, 18,   16, 18, 19, -- Right face
-        20, 21, 22,   20, 22, 23  -- Left face
-      ]
 
 type State bindings = {
                 context :: WebGLContext,
                 bindings :: {webGLProgram :: WebGLProg | bindings},
 
-                cubeVertices :: Buffer T.Float32,
-                cubeVerticesNormal :: Buffer T.Float32,
+                starVertices :: Buffer T.Float32,
                 textureCoords :: Buffer T.Float32,
-                cubeVertexIndices :: Buffer T.Uint16,
                 texture :: WebGLTex,
 
+                tilt    :: Number,
+                z       :: Number,
+                currentlyPressedKeys :: [Number],
+
+                animate :: STRef MyState Animate
+
+            }
+
+type Animate = {
                 lastTime :: Maybe Number,
-                xRot :: Number,
-                xSpeed :: Number,
-                yRot :: Number,
-                ySpeed :: Number,
-                z :: Number,
-                currentlyPressedKeys :: [Number]
+                stars   :: [Star],
+                spin    :: Number
               }
 
-main :: Eff (trace :: Trace, alert :: Alert, now :: Now) Unit
+vertices = [
+        -1.0, -1.0,  0.0,
+         1.0, -1.0,  0.0,
+        -1.0,  1.0,  0.0,
+         1.0,  1.0,  0.0
+        ]
+
+
+texCoo = [
+        0.0, 0.0,
+        1.0, 0.0,
+        0.0, 1.0,
+        1.0, 1.0
+        ]
+
+
+-- | Star attributes
+type Star =
+    { angle             :: Number
+    , dist              :: Number
+    , rotationSpeed     :: Number
+    , r                 :: Number
+    , g                 :: Number
+    , b                 :: Number
+    , twinkleR          :: Number
+    , twinkleG          :: Number
+    , twinkleB          :: Number
+    }
+
+
+-- Star methods
+starDefault :: Number -> Number -> Star
+starDefault startDist rotSpeed =
+    { angle         : 0
+    , dist          : startDist
+    , rotationSpeed : rotSpeed
+    , r             : 0
+    , g             : 0
+    , b             : 0
+    , twinkleR      : 0
+    , twinkleG      : 0
+    , twinkleB      : 0
+    }
+
+starCreate x y =
+    starRandomiseColors (starDefault x y)
+
+starRandomiseColors star = do
+    colors <- replicateM 6 random
+    return star
+        { r             = colors `unsafeIndex` 0
+        , g             = colors `unsafeIndex` 1
+        , b             = colors `unsafeIndex` 2
+        , twinkleR      = colors `unsafeIndex` 3
+        , twinkleG      = colors `unsafeIndex` 4
+        , twinkleB      = colors `unsafeIndex` 5
+        }
+
+starAnimate :: forall eff . Number -> Star -> EffWebGL (random :: Random |eff) Star
+starAnimate elapsedTime star = do
+    let
+        star' = star
+            { angle = star.angle + star.rotationSpeed * step
+            , dist  = star.dist - 0.01 * step
+            }
+    if star'.dist < 0.0
+        then starRandomiseColors star' {dist = star'.dist + 5.0}
+        else return star'
+  where
+    step = (elapsedTime *  60) / 1000
+
+starDraw :: forall h eff . State MyBindings -> Boolean -> M.STMat4 h -> Tuple Star Number -> EffWebGL (st :: ST h |eff) Unit
+starDraw s twinkle mvMatrix (Tuple star mySpin) = do
+    mv <- M.cloneSTMat mvMatrix
+    M.rotateST (degToRad star.angle) (V.j) mv
+    M.translateST (V.vec3' [star.dist, 0, 0]) mv
+    M.rotateST (degToRad $ negate star.angle) (V.j) mv
+    M.rotateST (degToRad $ negate s.tilt) (V.i) mv
+
+    if twinkle
+      then do
+        setUniformFloats s.bindings.uColor [star.twinkleR, star.twinkleG, star.twinkleB]
+        drawStar s mv
+      else return unit
+
+    M.rotateST (degToRad mySpin) (V.k) mv
+    setUniformFloats s.bindings.uColor [star.r, star.g, star.b]
+    drawStar s mv
+
+drawStar s (M.STMat mvMatrix) = do
+  setUniformFloats s.bindings.uMVMatrix (M.unsafeFreeze mvMatrix)
+  drawArr TRIANGLE_STRIP s.starVertices s.bindings.aVertexPosition
+
+main :: Eff (st :: ST MyState, trace :: Trace, alert :: Alert, now :: Now, random :: Random) Unit
 main = do
   runWebGL
     "glcanvas"
     (\s -> alert s)
       \ context -> do
-        trace "WebGL started"
+        trace "WebGL started-"
         withShaders
             shaders
             (\s -> alert s)
             \ bindings -> do
-          cubeVertices <- makeBufferSimple cubeV
-          cubeVerticesNormal <- makeBufferSimple vertexNormals
+              vs <- makeBufferSimple vertices
+              textureCoords <- makeBufferSimple texCoo
+              let starParams i = Tuple ((i / starCount) * 5.0) (i / starCount)
+              ss <- mapM (uncurry starCreate <<< starParams) (0 .. (starCount-1))
+              clearColor 0.0 0.0 0.0 1.0
+              texture2DFor "star.gif" MIPMAP \texture -> do
 
-          textureCoords <- makeBufferSimple texCoo
-          cubeVertexIndices <- makeBuffer ELEMENT_ARRAY_BUFFER T.asUint16Array cvi
-          clearColor 0.0 0.0 0.0 1.0
-          enable DEPTH_TEST
-          texture2DFor "crate.gif" MIPMAP \texture -> do
-            let state = {
-                          context : context,
-                          bindings : bindings,
+                let animate = {
+                            lastTime : Nothing,
+                            stars : ss,
+                            spin  : 0.0
+                            }
+                aniRef <- newSTRef animate
+                let state = {
+                              context : context,
+                              bindings : bindings,
 
-                          cubeVertices : cubeVertices,
-                          cubeVerticesNormal : cubeVerticesNormal,
-                          textureCoords : textureCoords,
-                          cubeVertexIndices : cubeVertexIndices,
-                          texture : texture,
-                          lastTime : Nothing,
+                              starVertices : vs,
+                              textureCoords : textureCoords,
+                              texture : texture,
+                              animate : aniRef,
+                              tilt  : 90.0,
+                              z     : (-15.0),
+                              currentlyPressedKeys : []
+                            }
+                stRef <- newSTRef state
+                onKeyDown (handleKeyD stRef)
+                onKeyUp (handleKeyU stRef)
+                tick stRef
 
-                          xRot : 0,
-                          xSpeed : 1.0,
-                          yRot : 0,
-                          ySpeed : 1.0,
-                          z : (-5.0),
-                          currentlyPressedKeys : []
-                        } :: State MyBindings
-            runST do
-              stRef <- newSTRef state
-              onKeyDown (handleKeyD stRef)
-              onKeyUp (handleKeyU stRef)
-              tick (stRef :: STRef _ (State MyBindings))
-
-tick :: forall h eff. STRef h (State MyBindings) ->  EffWebGL (st :: ST h, trace :: Trace, now :: Now |eff) Unit
+tick :: forall eff. STRef MyState (State MyBindings) ->  EffWebGL (st :: ST MyState, trace :: Trace, now :: Now, random :: Random |eff) Unit
 tick stRef = do
   drawScene stRef
   handleKeys stRef
   animate stRef
   requestAnimationFrame (tick stRef)
 
-animate ::  forall h eff . STRef h (State MyBindings) -> EffWebGL (st :: ST h, now :: Now |eff) Unit
+animate ::  forall eff . STRef MyState (State MyBindings) -> EffWebGL (st :: ST MyState, now :: Now, random :: Random |eff) Unit
 animate stRef = do
   s <- readSTRef stRef
+  ani <- readSTRef s.animate
   timeNow <- liftM1 toEpochMilliseconds now
-  case s.lastTime of
-    Nothing -> writeSTRef stRef (s {lastTime = Just timeNow})
+  case ani.lastTime of
+    Nothing -> writeSTRef s.animate (ani {lastTime = Just timeNow})
     Just lastt ->
-      let elapsed = timeNow - lastt
-      in writeSTRef stRef (s {lastTime = Just timeNow,
-                              xRot = s.xRot + s.xSpeed * elapsed / 1000.0,
-                              yRot = s.yRot + s.ySpeed * elapsed / 1000.0
-                              })
+      let
+        elapsed = timeNow - lastt
+        spin'   = ani.spin + (spinStep * length ani.stars)
+      in do
+        stars' <- mapM (starAnimate elapsed) ani.stars
+        writeSTRef s.animate (ani {lastTime = Just timeNow, spin=spin', stars=stars'})
   return unit
 
-drawScene :: forall h eff . STRef h (State MyBindings) -> EffWebGL (st :: ST h |eff) Unit
+drawScene :: forall eff . STRef MyState (State MyBindings) -> EffWebGL (st :: ST MyState |eff) Unit
 drawScene stRef = do
   s <- readSTRef stRef
   canvasWidth <- getCanvasWidth s.context
   canvasHeight <- getCanvasHeight s.context
+  twinkle <- getElementByIdBool "twinkle"
+
   viewport 0 0 canvasWidth canvasHeight
   clear [COLOR_BUFFER_BIT, DEPTH_BUFFER_BIT]
+  blendFunc SRC_ALPHA ONE
+  enable BLEND
+  bindPointBuf s.starVertices s.bindings.aVertexPosition
+  bindPointBuf s.textureCoords s.bindings.aTextureCoord
+  withTexture2D s.texture 0 s.bindings.uSampler 0
 
+  ani <- readSTRef s.animate
+  r <- iterateN (+spinStep) (length ani.stars) ani.spin
+  let ss = zip ani.stars r
   let pMatrix = M.makePerspective 45 (canvasWidth / canvasHeight) 0.1 100.0
   setUniformFloats s.bindings.uPMatrix (M.toArray pMatrix)
 
-  let mvMatrix =
-      M.rotate (degToRad s.yRot) (V.vec3' [0, 1, 0])
-        $ M.rotate (degToRad s.xRot) (V.vec3' [1, 0, 0])
-          $ M.translate  (V.vec3 0.0 0.0 s.z)
-            $ M.identity
-  setUniformFloats s.bindings.uMVMatrix (M.toArray mvMatrix)
+  mvMatrix <- initialMVMatrix s.tilt s.z
+  foreachE ss (starDraw s twinkle mvMatrix)
 
-  let nMatrix = fromJust $ M.normalFromMat4 mvMatrix
-  setUniformFloats s.bindings.uNMatrix (M.toArray nMatrix)
+initialMVMatrix :: forall h r. Number -> Number -> Eff (st :: ST h | r) (M.STMat4 h)
+initialMVMatrix tilt zoom = do
+    m <- M.identityST
+    M.translateST (V.vec3' [0.0, 0.0, zoom]) m
+    M.rotateST (degToRad tilt) V.i m
+    return m
 
-  setLightning s
 
-  bindPointBuf s.cubeVertices s.bindings.aVertexPosition
-  bindPointBuf s.cubeVerticesNormal s.bindings.aVertexNormal
-  bindPointBuf s.textureCoords s.bindings.aTextureCoord
-  withTexture2D s.texture 0 s.bindings.uSampler 0
-  bindBuf s.cubeVertexIndices
-  drawElements TRIANGLES s.cubeVertexIndices.bufferSize
 
-setLightning :: forall eff. (State MyBindings) -> EffWebGL eff Unit
-setLightning s = do
-  lighting <- getElementByIdBool "lighting"
-  setUniformBooleans s.bindings.uUseLighting [lighting]
-  if lighting
-    then do
-      ar <- getElementByIdFloat "ambientR"
-      ag <- getElementByIdFloat "ambientG"
-      ab <- getElementByIdFloat "ambientB"
-      setUniformFloats s.bindings.uAmbientColor [ar, ag, ab]
-      lx <- getElementByIdFloat "lightDirectionX"
-      ly <- getElementByIdFloat "lightDirectionY"
-      lz <- getElementByIdFloat "lightDirectionZ"
-      let v = V.scale (-1)
-                  $ V.normalize
-                    $ V.vec3 lx ly lz
-      setUniformFloats s.bindings.uLightingDirection (V.toArray v)
-      dr <- getElementByIdFloat "directionalR"
-      dg <- getElementByIdFloat "directionalG"
-      db <- getElementByIdFloat "directionalB"
-      setUniformFloats s.bindings.uDirectionalColor [dr, dg, db]
-    else return unit
+
+-- | collects results of repeated function application, up to n times
+iterateN :: forall a h r. (a -> a) -> Number -> a -> Eff (st :: ST h | r) [a]                   -- pfff... I miss Haskell's laziness...
+iterateN f n a = do
+  e <- emptySTArray
+  iterate' e n a
+    where
+      iterate' res 0 _ = do
+        res' <- freeze res
+        return (reverse res')
+      iterate' res n x = do
+        pushSTArray res x
+        iterate' res (n-1) (f x)
 
 
 foreign import getElementByIdFloat
@@ -368,6 +335,7 @@ radToDeg x = x/pi*180
 degToRad :: Number -> Number
 degToRad x = x/180*pi
 
+
 -- * Key handling
 
 handleKeys ::  forall h eff . STRef h (State MyBindings) -> EffWebGL (trace :: Trace, st :: ST h |eff) Unit
@@ -377,50 +345,44 @@ handleKeys stRef = do
     then return unit
     else
       let z' = if elemIndex 33 s.currentlyPressedKeys /= -1
-                  then s.z - 0.05
+                  then s.z - 0.1
                   else s.z
           z'' = if elemIndex 34 s.currentlyPressedKeys /= -1
-                  then z' + 0.05
+                  then z' + 0.1
                   else z'
-          ySpeed' = if elemIndex 37 s.currentlyPressedKeys /= -1
-                  then s.ySpeed - 1
-                  else s.ySpeed
-          ySpeed'' = if elemIndex 39 s.currentlyPressedKeys /= -1
-                  then ySpeed' + 1
-                  else ySpeed'
-          xSpeed' = if elemIndex 38 s.currentlyPressedKeys /= -1
-                  then s.xSpeed - 1
-                  else s.xSpeed
-          xSpeed'' = if elemIndex 40 s.currentlyPressedKeys /= -1
-                  then xSpeed' + 1
-                  else xSpeed'
+          tilt' = if elemIndex 38 s.currentlyPressedKeys /= -1
+                  then s.tilt - 2
+                  else s.tilt
+          tilt'' = if elemIndex 40 s.currentlyPressedKeys /= -1
+                  then tilt' + 2
+                  else tilt'
       in do
-        writeSTRef stRef (s{z=z'',ySpeed=ySpeed'',xSpeed=xSpeed''})
-        trace (show s.currentlyPressedKeys)
+        writeSTRef stRef (s{z=z'',tilt=tilt''})
+        -- trace (show s.currentlyPressedKeys)
         return unit
 
 handleKeyD :: forall h eff. STRef h (State MyBindings) -> Event -> Eff (st :: ST h, trace :: Trace | eff) Unit
 handleKeyD stRef event = do
-  trace "handleKeyDown"
+  -- trace "handleKeyDown"
   let key = eventGetKeyCode event
   s <- readSTRef stRef
   let cp = if elemIndex key s.currentlyPressedKeys /= -1
               then s.currentlyPressedKeys
               else key : s.currentlyPressedKeys
   writeSTRef stRef (s {currentlyPressedKeys = cp})
---  trace (show s.currentlyPressedKeys)
+  -- trace (show s.currentlyPressedKeys)
   return unit
 
 handleKeyU :: forall h eff. STRef h (State MyBindings) -> Event -> Eff (st :: ST h, trace :: Trace | eff) Unit
 handleKeyU stRef event = do
-  trace "handleKeyUp"
+  -- trace "handleKeyUp"
   let key = eventGetKeyCode event
   s <- readSTRef stRef
   if elemIndex key s.currentlyPressedKeys == -1
     then return unit
     else do
       writeSTRef stRef (s {currentlyPressedKeys = delete key s.currentlyPressedKeys})
---      trace (show s.currentlyPressedKeys)
+       -- trace (show s.currentlyPressedKeys)
       return unit
 
 foreign import data Event :: *
