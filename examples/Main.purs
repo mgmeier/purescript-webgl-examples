@@ -9,7 +9,6 @@ import Graphics.WebGLRaw
 import Graphics.WebGLTexture
 import qualified Data.Matrix as M
 import qualified Data.Matrix4 as M
-import qualified Data.Matrix3 as M
 import qualified Data.ST.Matrix as M
 import qualified Data.ST.Matrix4 as M
 import qualified Data.Vector as V
@@ -322,7 +321,8 @@ foreign import getElementByIdBool
 """
   function getElementByIdBool(targ_id) {
       return function () {
-        return document.getElementById(targ_id).checked;
+        var elt = document.getElementById(targ_id);
+        return elt && elt.checked;
       };
     }
 """ :: forall eff. String -> (EffWebGL eff Boolean)
