@@ -9,7 +9,6 @@ import Graphics.WebGLRaw
 import Graphics.WebGLTexture
 import qualified Data.Matrix as M
 import qualified Data.Matrix4 as M
-import qualified Data.Matrix3 as M3
 import qualified Data.Vector as V
 import qualified Data.Vector3 as V
 import qualified Data.ArrayBuffer.Types as T
@@ -75,13 +74,6 @@ shaders = Shaders
             vTextureCoord = aTextureCoord;
         }
   """
-
-
-
-type DrawParams =
-    { pMatrix       :: M.Mat4
-    , mvMatrix      :: M.Mat4
-    }
 
 type State bindings = {
                 context :: WebGLContext,
@@ -170,24 +162,24 @@ starAnimate elapsedTime star = do
   where
     step = (elapsedTime *  60) / 1000
 
-starDraw :: forall eff . State MyBindings -> DrawParams -> Boolean -> Tuple Star Number -> EffWebGL eff Unit
-starDraw s params twinkle (Tuple star mySpin) = do
+starDraw :: forall eff . State MyBindings -> M.Mat4 -> Boolean -> Tuple Star Number -> EffWebGL eff Unit
+starDraw s mvMatrix twinkle (Tuple star mySpin) = do
     let
         mv' =
             M.rotate (degToRad $ negate s.tilt) (V.vec3' [1, 0, 0])
                 $ M.rotate (degToRad $ negate star.angle) (V.vec3' [0, 1, 0])
                 $ M.translate (V.vec3 star.dist 0 0)
                 $ M.rotate (degToRad star.angle) (V.vec3' [0, 1, 0])
-                $ params.mvMatrix
+                $ mvMatrix
         mv'' =
             M.rotate (degToRad mySpin) (V.vec3' [0, 0, 1]) mv'
 
     when twinkle $ do
         setUniformFloats s.bindings.uColor [star.twinkleR, star.twinkleG, star.twinkleB]
-        drawStar s (params {mvMatrix = mv'})
+        drawStar s mv'
 
     setUniformFloats s.bindings.uColor [star.r, star.g, star.b]
-    drawStar s (params {mvMatrix = mv''})
+    drawStar s mv''
 
 
 
@@ -267,18 +259,16 @@ drawScene stRef = do
   withTexture2D s.texture 0 s.bindings.uSampler 0
 
   let
-    params =
-        { pMatrix   : M.makePerspective 45 (canvasWidth / canvasHeight) 0.1 100.0
-        , mvMatrix  : M.rotate (degToRad s.tilt) (V.vec3' [1, 0, 0]) $ M.translate (V.vec3 0.0 0.0 s.z) $ M.identity
-        } :: DrawParams
+    pMatrix = M.makePerspective 45 (canvasWidth / canvasHeight) 0.1 100.0
+    mvMatrix = M.rotate (degToRad s.tilt) (V.vec3' [1, 0, 0]) $ M.translate (V.vec3 0.0 0.0 s.z) $ M.identity
     ss = zip s.stars (iterateN (+spinStep) (length s.stars) s.spin)
+  
+  setUniformFloats s.bindings.uPMatrix (M.toArray pMatrix)
+  for_ ss $ starDraw s mvMatrix twinkle
 
-  for_ ss $ starDraw s params twinkle
 
-
-drawStar s params = do
-  setUniformFloats s.bindings.uPMatrix (M.toArray params.pMatrix)
-  setUniformFloats s.bindings.uMVMatrix (M.toArray params.mvMatrix)
+drawStar s mvMatrix = do
+  setUniformFloats s.bindings.uMVMatrix (M.toArray mvMatrix)
   drawArr TRIANGLE_STRIP s.starVertices s.bindings.aVertexPosition
 
 
