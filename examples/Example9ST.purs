@@ -9,7 +9,6 @@ import Graphics.WebGLRaw
 import Graphics.WebGLTexture
 import qualified Data.Matrix as M
 import qualified Data.Matrix4 as M
-import qualified Data.Matrix3 as M3
 import qualified Data.ST.Matrix as M
 import qualified Data.ST.Matrix4 as M
 import qualified Data.Vector as V
@@ -166,8 +165,8 @@ starAnimate elapsedTime star = do
   where
     step = (elapsedTime *  60) / 1000
 
-starDraw :: forall h eff . State MyBindings -> Boolean -> M.Mat4 -> M.STMat4 h -> Tuple Star Number -> EffWebGL (st :: ST h |eff) Unit
-starDraw s twinkle pMatrix mvMatrix (Tuple star mySpin) = do
+starDraw :: forall h eff . State MyBindings -> Boolean -> M.STMat4 h -> Tuple Star Number -> EffWebGL (st :: ST h |eff) Unit
+starDraw s twinkle mvMatrix (Tuple star mySpin) = do
     mv <- M.cloneSTMat mvMatrix
     M.rotateST (degToRad star.angle) (V.vec3' [0, 1, 0]) mv
     M.translateST (V.vec3 star.dist 0 0) mv
@@ -176,11 +175,11 @@ starDraw s twinkle pMatrix mvMatrix (Tuple star mySpin) = do
 
     when twinkle $ do
         setUniformFloats s.bindings.uColor [star.twinkleR, star.twinkleG, star.twinkleB]
-        drawStar s pMatrix mv
+        drawStar s mv
 
     M.rotateST (degToRad mySpin) (V.vec3' [0, 0, 1]) mv
     setUniformFloats s.bindings.uColor [star.r, star.g, star.b]
-    drawStar s pMatrix mv
+    drawStar s mv
 
 
 main :: Eff (trace :: Trace, alert :: Alert, now :: Now, random :: Random) Unit
@@ -257,12 +256,14 @@ drawScene stRef = do
   bindPointBuf s.starVertices s.bindings.aVertexPosition
   bindPointBuf s.textureCoords s.bindings.aTextureCoord
   withTexture2D s.texture 0 s.bindings.uSampler 0
-
-  let ss = zip s.stars (iterateN (+spinStep) (length s.stars) s.spin)
-  let pMatrix = M.makePerspective 45 (canvasWidth / canvasHeight) 0.1 100.0
-
+  
+  let
+    pMatrix = M.makePerspective 45 (canvasWidth / canvasHeight) 0.1 100.0
+    ss = zip s.stars (iterateN (+spinStep) (length s.stars) s.spin)
+    
+  setUniformFloats s.bindings.uPMatrix (M.toArray pMatrix)
   mvMatrix <- initialMVMatrix s.tilt s.z
-  for_ ss $ starDraw s twinkle pMatrix mvMatrix
+  for_ ss $ starDraw s twinkle mvMatrix
 
 
 initialMVMatrix :: forall h r. Number -> Number -> Eff (st :: ST h | r) (M.STMat4 h)
@@ -272,8 +273,7 @@ initialMVMatrix tilt zoom = do
     M.rotateST (degToRad tilt) V.i m
     return m
 
-drawStar s pMatrix (M.STMat mvMatrix) = do
-  setUniformFloats s.bindings.uPMatrix (M.toArray pMatrix)
+drawStar s (M.STMat mvMatrix) = do
   setUniformFloats s.bindings.uMVMatrix (M.unsafeFreeze mvMatrix)
   drawArr TRIANGLE_STRIP s.starVertices s.bindings.aVertexPosition
 
