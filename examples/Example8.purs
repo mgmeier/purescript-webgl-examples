@@ -9,10 +9,10 @@ import Graphics.WebGLRaw
 import Graphics.WebGLTexture
 import qualified Data.Matrix as M
 import qualified Data.Matrix4 as M
-import qualified Data.Matrix3 as M
+import qualified Data.Matrix3 as M3
 import qualified Data.Vector as V
 import qualified Data.Vector3 as V
-import qualified Data.TypedArray.Types as T
+import qualified Data.ArrayBuffer.Types as T
 import qualified Data.TypedArray as T
 import Control.Monad.Eff.Alert
 
@@ -309,7 +309,7 @@ drawScene stRef = do
             $ M.identity
   setUniformFloats s.bindings.uMVMatrix (M.toArray mvMatrix)
 
-  let nMatrix = fromJust $ M.normalFromMat4 mvMatrix
+  let nMatrix = fromJust $ M3.normalFromMat4 mvMatrix
   setUniformFloats s.bindings.uNMatrix (M.toArray nMatrix)
 
   setBlending s

@@ -13,7 +13,7 @@ import qualified Data.ST.Matrix as M
 import qualified Data.ST.Matrix4 as M
 import qualified Data.Vector as V
 import qualified Data.Vector3 as V
-import qualified Data.TypedArray.Types as T
+import qualified Data.ArrayBuffer.Types as T
 import qualified Data.TypedArray as T
 import Control.Monad.Eff.Alert
 import Extensions (mapM)

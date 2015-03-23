@@ -9,10 +9,10 @@ import Graphics.WebGLRaw
 import Graphics.WebGLTexture
 import qualified Data.Matrix as M
 import qualified Data.Matrix4 as M
-import qualified Data.Matrix3 as M
+import qualified Data.Matrix3 as M3
 import qualified Data.Vector as V
 import qualified Data.Vector3 as V
-import qualified Data.TypedArray.Types as T
+import qualified Data.ArrayBuffer.Types as T
 import qualified Data.TypedArray as T
 import Control.Monad.Eff.Alert
 import Extensions
@@ -49,12 +49,12 @@ shaders = Shaders
 
   """
         precision mediump float;
-        
+
         varying vec2 vTextureCoord;
-        
+
         uniform sampler2D uSampler;
         uniform vec3 uColor;
-        
+
         void main(void) {
             vec4 textureColor = texture2D(uSampler, vec2(vTextureCoord.s, vTextureCoord.t));
             gl_FragColor = textureColor * vec4(uColor, 1.0);
@@ -64,12 +64,12 @@ shaders = Shaders
   """
         attribute vec3 aVertexPosition;
         attribute vec2 aTextureCoord;
-        
+
         uniform mat4 uMVMatrix;
         uniform mat4 uPMatrix;
-        
+
         varying vec2 vTextureCoord;
-        
+
         void main(void) {
             gl_Position = uPMatrix * uMVMatrix * vec4(aVertexPosition, 1.0);
             vTextureCoord = aTextureCoord;
@@ -105,7 +105,7 @@ vertices = [
         -1.0,  1.0,  0.0,
          1.0,  1.0,  0.0
         ]
-        
+
 
 texCoo = [
         0.0, 0.0,
@@ -116,7 +116,7 @@ texCoo = [
 
 
 -- | Star attributes
-type Star = 
+type Star =
     { angle             :: Number
     , dist              :: Number
     , rotationSpeed     :: Number
@@ -136,25 +136,25 @@ starDefault startDist rotSpeed =
     , dist          : startDist
     , rotationSpeed : rotSpeed
     , r             : 0
-    , g             : 0 
-    , b             : 0 
-    , twinkleR      : 0 
-    , twinkleG      : 0 
-    , twinkleB      : 0  
+    , g             : 0
+    , b             : 0
+    , twinkleR      : 0
+    , twinkleG      : 0
+    , twinkleB      : 0
     }
 
 starCreate x y =
     starRandomiseColors (starDefault x y)
-    
+
 starRandomiseColors star = do
     colors <- replicateM 6 random
-    return star 
-        { r             = colors `unsafeIndex` 0 
-        , g             = colors `unsafeIndex` 1 
-        , b             = colors `unsafeIndex` 2 
-        , twinkleR      = colors `unsafeIndex` 3 
-        , twinkleG      = colors `unsafeIndex` 4 
-        , twinkleB      = colors `unsafeIndex` 5  
+    return star
+        { r             = colors `unsafeIndex` 0
+        , g             = colors `unsafeIndex` 1
+        , b             = colors `unsafeIndex` 2
+        , twinkleR      = colors `unsafeIndex` 3
+        , twinkleG      = colors `unsafeIndex` 4
+        , twinkleB      = colors `unsafeIndex` 5
         }
 
 starAnimate :: forall eff . Number -> Star -> EffWebGL (random :: Random |eff) Star
@@ -216,8 +216,8 @@ main = do
                               textureCoords : textureCoords,
                               texture : texture,
                               lastTime : Nothing,
-                              
-                              stars : ss, 
+
+                              stars : ss,
                               spin  : 0.0,
                               tilt  : 90.0,
                               z     : (-15.0),
@@ -265,14 +265,14 @@ drawScene stRef = do
   bindPointBuf s.starVertices s.bindings.aVertexPosition
   bindPointBuf s.textureCoords s.bindings.aTextureCoord
   withTexture2D s.texture 0 s.bindings.uSampler 0
-  
+
   let
-    params = 
+    params =
         { pMatrix   : M.makePerspective 45 (canvasWidth / canvasHeight) 0.1 100.0
         , mvMatrix  : M.rotate (degToRad s.tilt) (V.vec3' [1, 0, 0]) $ M.translate (V.vec3 0.0 0.0 s.z) $ M.identity
         } :: DrawParams
     ss = zip s.stars (iterateN (+spinStep) (length s.stars) s.spin)
-  
+
   for_ ss $ starDraw s params twinkle
 
 
@@ -282,7 +282,7 @@ drawStar s params = do
   drawArr TRIANGLE_STRIP s.starVertices s.bindings.aVertexPosition
 
 
--- | collects results of repeated function application, up to n times 
+-- | collects results of repeated function application, up to n times
 iterateN :: forall a . (a -> a) -> Number -> a -> [a]                   -- pfff... I miss Haskell's laziness...
 iterateN f = iterate' []
   where

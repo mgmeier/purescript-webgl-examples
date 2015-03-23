@@ -10,7 +10,7 @@ import qualified Data.Matrix4 as M
 import qualified Data.Matrix as M
 import qualified Data.Vector3 as V3
 import Control.Monad.Eff.Alert
-import qualified Data.TypedArray.Types as T
+import qualified Data.ArrayBuffer.Types as T
 import qualified Data.TypedArray as T
 
 import Control.Monad.Eff
