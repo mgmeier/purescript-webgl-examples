@@ -256,7 +256,7 @@ drawScene stRef = do
   bindPointBuf s.starVertices s.bindings.aVertexPosition
   bindPointBuf s.textureCoords s.bindings.aTextureCoord
   withTexture2D s.texture 0 s.bindings.uSampler 0
-
+  
   let
     pMatrix = M.makePerspective 45 (canvasWidth / canvasHeight) 0.1 100.0
     ss = zip s.stars (iterateN (+spinStep) (length s.stars) s.spin)
