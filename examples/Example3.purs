@@ -14,6 +14,7 @@ import Control.Monad
 import Debug.Trace
 import Data.Tuple
 import Data.Date
+import Data.Time
 import Data.Maybe
 import Math
 
@@ -71,19 +72,19 @@ main =
         withShaders shaders
                     (\s -> alert s)
                       \ bindings -> do
-          buf1 <- makeBufferSimple [0.0,  1.0,  0.0,
+          buf1 <- makeBufferFloat [0.0,  1.0,  0.0,
                               (-1.0), (-1.0),  0.0,
                               1.0, (-1.0),  0.0]
-          buf1Colors <- makeBufferSimple  [
+          buf1Colors <- makeBufferFloat  [
                               1.0, 0.0, 0.0, 1.0,
                               0.0, 1.0, 0.0, 1.0,
                               0.0, 0.0, 1.0, 1.0
                               ]
-          buf2 <- makeBufferSimple [1.0,  1.0,  0.0,
+          buf2 <- makeBufferFloat [1.0,  1.0,  0.0,
                              (-1.0), 1.0,  0.0,
                               1.0, (-1.0),  0.0,
                              (-1.0), (-1.0),  0.0]
-          buf2Colors <- makeBufferSimple
+          buf2Colors <- makeBufferFloat
                              [0.5, 0.5, 1.0, 1.0,
                              0.5, 0.5, 1.0, 1.0,
                              0.5, 0.5, 1.0, 1.0,
@@ -115,9 +116,12 @@ tick state = do
   return unit
   requestAnimationFrame (tick state')
 
+unpackMilliseconds :: Milliseconds -> Number
+unpackMilliseconds (Milliseconds n) = n
+
 animate ::  forall eff. State -> EffWebGL (now :: Now |eff) State
 animate state = do
-  timeNow <- liftM1 toEpochMilliseconds now
+  timeNow <- liftM1 (unpackMilliseconds <<< toEpochMilliseconds) now
   case state.lastTime of
     Nothing -> return state {lastTime = Just timeNow}
     Just lastt ->
@@ -141,7 +145,7 @@ drawScene s = do
 
       setUniformFloats s.uMVMatrix (M.toArray mvMatrix)
 
-      bindPointBuf s.buf1Colors s.aVertexColor
+      bindBufAndSetVertexAttr s.buf1Colors s.aVertexColor
       drawArr TRIANGLES s.buf1 s.aVertexPosition
 
       let mvMatrix =
@@ -149,7 +153,7 @@ drawScene s = do
             $ M.translate  (V3.vec3 (1.5) 0.0 (-7.0)) M.identity
       setUniformFloats s.uMVMatrix (M.toArray mvMatrix)
 
-      bindPointBuf s.buf2Colors s.aVertexColor
+      bindBufAndSetVertexAttr s.buf2Colors s.aVertexColor
       drawArr TRIANGLE_STRIP s.buf2 s.aVertexPosition
 
 -- | Convert from radians to degrees.

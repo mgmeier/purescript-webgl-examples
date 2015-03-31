@@ -19,6 +19,7 @@ import Control.Monad
 import Debug.Trace
 import Data.Tuple
 import Data.Date
+import Data.Time
 import Data.Maybe
 import Data.Array
 import Math
@@ -85,7 +86,7 @@ main = do
         withShaders shaders
                     (\s -> alert s)
                       \ binding -> do
-          cubeVertices <- makeBufferSimple [
+          cubeVertices <- makeBufferFloat [
                             -- Front face
                             -1.0, -1.0,  1.0,
                              1.0, -1.0,  1.0,
@@ -122,7 +123,7 @@ main = do
                             -1.0,  1.0,  1.0,
                             -1.0,  1.0, -1.0]
 
-          textureCoords <- makeBufferSimple [
+          textureCoords <- makeBufferFloat [
                             -- Front face
                             0.0, 0.0,
                             1.0, 0.0,
@@ -197,9 +198,12 @@ tick state = do
   state' <- animate state
   requestAnimationFrame (tick state')
 
+unpackMilliseconds :: Milliseconds -> Number
+unpackMilliseconds (Milliseconds n) = n
+
 animate ::  forall eff. State -> EffWebGL (now :: Now |eff) State
 animate state = do
-  timeNow <- liftM1 toEpochMilliseconds now
+  timeNow <- liftM1 (unpackMilliseconds <<< toEpochMilliseconds) now
   case state.lastTime of
     Nothing -> return state {lastTime = Just timeNow}
     Just lastt ->
@@ -226,8 +230,8 @@ drawScene s = do
 
       setUniformFloats s.uMVMatrix (M.toArray mvMatrix)
 
-      bindPointBuf s.cubeVertices s.aVertexPosition
-      bindPointBuf s.textureCoords s.aTextureCoord
+      bindBufAndSetVertexAttr s.cubeVertices s.aVertexPosition
+      bindBufAndSetVertexAttr s.textureCoords s.aTextureCoord
 
       withTexture2D s.texture 0 s.uSampler 0
 

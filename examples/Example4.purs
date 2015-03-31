@@ -13,6 +13,7 @@ import Control.Monad.Eff
 import Control.Monad
 import Debug.Trace
 import Data.Date
+import Data.Time
 import Data.Maybe
 import Data.Array
 import Math
@@ -72,7 +73,7 @@ main =
         withShaders shaders
                     (\s -> alert s)
                       \ bindings -> do
-          pyramidVertices <- makeBufferSimple [
+          pyramidVertices <- makeBufferFloat [
                               -- Front face
                                0.0,  1.0,  0.0,
                               -1.0, -1.0,  1.0,
@@ -92,7 +93,7 @@ main =
                                0.0,  1.0,  0.0,
                               -1.0, -1.0, -1.0,
                               -1.0, -1.0,  1.0]
-          pyramidColors <- makeBufferSimple   [
+          pyramidColors <- makeBufferFloat   [
                               -- Front face
                               1.0, 0.0, 0.0, 1.0,
                               0.0, 1.0, 0.0, 1.0,
@@ -112,7 +113,7 @@ main =
                               1.0, 0.0, 0.0, 1.0,
                               0.0, 0.0, 1.0, 1.0,
                               0.0, 1.0, 0.0, 1.0]
-          cubeVertices <- makeBufferSimple [
+          cubeVertices <- makeBufferFloat [
                             -- Front face
                             -1.0, -1.0,  1.0,
                              1.0, -1.0,  1.0,
@@ -148,7 +149,7 @@ main =
                             -1.0, -1.0,  1.0,
                             -1.0,  1.0,  1.0,
                             -1.0,  1.0, -1.0]
-          cubeColors <- makeBufferSimple $ concat $ concatMap (\e -> [e,e,e,e])
+          cubeColors <- makeBufferFloat $ concat $ concatMap (\e -> [e,e,e,e])
                               [[1.0, 0.0, 0.0, 1.0], -- Front face
                               [1.0, 1.0, 0.0, 1.0], -- Back face
                               [0.0, 1.0, 0.0, 1.0], -- Top face
@@ -189,9 +190,12 @@ tick state = do
   state' <- animate state
   requestAnimationFrame (tick state')
 
+unpackMilliseconds :: Milliseconds -> Number
+unpackMilliseconds (Milliseconds n) = n
+
 animate ::  forall eff. State -> EffWebGL (now :: Now |eff) State
 animate state = do
-  timeNow <- liftM1 toEpochMilliseconds now
+  timeNow <- liftM1 (unpackMilliseconds <<< toEpochMilliseconds) now
   case state.lastTime of
     Nothing -> return state {lastTime = Just timeNow}
     Just lastt ->
@@ -216,7 +220,7 @@ drawScene s = do
               $ M.identity
 
       setUniformFloats s.uMVMatrix (M.toArray mvMatrix)
-      bindPointBuf s.pyramidColors s.aVertexColor
+      bindBufAndSetVertexAttr s.pyramidColors s.aVertexColor
       drawArr TRIANGLES s.pyramidVertices s.aVertexPosition
 
 -- The cube
@@ -226,8 +230,8 @@ drawScene s = do
               $ M.identity
       setUniformFloats s.uMVMatrix (M.toArray mvMatrix)
 
-      bindPointBuf s.cubeColors s.aVertexColor
-      bindPointBuf s.cubeVertices s.aVertexPosition
+      bindBufAndSetVertexAttr s.cubeColors s.aVertexColor
+      bindBufAndSetVertexAttr s.cubeVertices s.aVertexPosition
       bindBuf s.cubeVertexIndices
       drawElements TRIANGLES s.cubeVertexIndices.bufferSize
 

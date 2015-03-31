@@ -26,6 +26,7 @@ import Debug.Trace
 import Data.Tuple
 import Data.Traversable (for)
 import Data.Date
+import Data.Time
 import Data.Maybe
 import Data.Maybe.Unsafe (fromJust)
 import Data.Array
@@ -207,8 +208,8 @@ main = do
             shaders
             (\s -> alert s)
             \ bindings -> do
-              vs <- makeBufferSimple vertices
-              textureCoords <- makeBufferSimple texCoo
+              vs <- makeBufferFloat vertices
+              textureCoords <- makeBufferFloat texCoo
               let starParams i = Tuple ((i / starCount) * 5.0) (i / starCount)
               ss <- mapM (uncurry starCreate <<< starParams) (0 .. (starCount-1))
               clearColor 0.0 0.0 0.0 1.0
@@ -244,11 +245,14 @@ tick stRef = do
   animate stRef
   requestAnimationFrame (tick stRef)
 
+unpackMilliseconds :: Milliseconds -> Number
+unpackMilliseconds (Milliseconds n) = n
+
 animate ::  forall eff . STRef MyState (State MyBindings) -> EffWebGL (st :: ST MyState, now :: Now, random :: Random |eff) Unit
 animate stRef = do
   s <- readSTRef stRef
   ani <- readSTRef s.animate
-  timeNow <- liftM1 toEpochMilliseconds now
+  timeNow <- liftM1 (unpackMilliseconds <<< toEpochMilliseconds) now
   case ani.lastTime of
     Nothing -> writeSTRef s.animate (ani {lastTime = Just timeNow})
     Just lastt ->
@@ -271,8 +275,8 @@ drawScene stRef = do
   clear [COLOR_BUFFER_BIT, DEPTH_BUFFER_BIT]
   blendFunc SRC_ALPHA ONE
   enable BLEND
-  bindPointBuf s.starVertices s.bindings.aVertexPosition
-  bindPointBuf s.textureCoords s.bindings.aTextureCoord
+  bindBufAndSetVertexAttr s.starVertices s.bindings.aVertexPosition
+  bindBufAndSetVertexAttr s.textureCoords s.bindings.aTextureCoord
   withTexture2D s.texture 0 s.bindings.uSampler 0
 
   ani <- readSTRef s.animate

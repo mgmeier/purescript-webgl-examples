@@ -22,6 +22,7 @@ import Control.Monad.ST
 import Debug.Trace
 import Data.Tuple
 import Data.Date
+import Data.Time
 import Data.Maybe
 import Data.Maybe.Unsafe (fromJust)
 import Data.Array
@@ -236,10 +237,10 @@ main = do
             shaders
             (\s -> alert s)
             \ bindings -> do
-          cubeVertices <- makeBufferSimple cubeV
-          cubeVerticesNormal <- makeBufferSimple vertexNormals
+          cubeVertices <- makeBufferFloat cubeV
+          cubeVerticesNormal <- makeBufferFloat vertexNormals
 
-          textureCoords <- makeBufferSimple texCoo
+          textureCoords <- makeBufferFloat texCoo
           cubeVertexIndices <- makeBuffer ELEMENT_ARRAY_BUFFER T.asUint16Array cvi
           clearColor 0.0 0.0 0.0 1.0
           enable DEPTH_TEST
@@ -275,10 +276,13 @@ tick stRef = do
   animate stRef
   requestAnimationFrame (tick stRef)
 
+unpackMilliseconds :: Milliseconds -> Number
+unpackMilliseconds (Milliseconds n) = n
+
 animate ::  forall h eff . STRef h (State MyBindings) -> EffWebGL (st :: ST h, now :: Now |eff) Unit
 animate stRef = do
   s <- readSTRef stRef
-  timeNow <- liftM1 toEpochMilliseconds now
+  timeNow <- liftM1 (unpackMilliseconds <<< toEpochMilliseconds) now
   case s.lastTime of
     Nothing -> writeSTRef stRef (s {lastTime = Just timeNow})
     Just lastt ->
@@ -312,9 +316,9 @@ drawScene stRef = do
 
   setLightning s
 
-  bindPointBuf s.cubeVertices s.bindings.aVertexPosition
-  bindPointBuf s.cubeVerticesNormal s.bindings.aVertexNormal
-  bindPointBuf s.textureCoords s.bindings.aTextureCoord
+  bindBufAndSetVertexAttr s.cubeVertices s.bindings.aVertexPosition
+  bindBufAndSetVertexAttr s.cubeVerticesNormal s.bindings.aVertexNormal
+  bindBufAndSetVertexAttr s.textureCoords s.bindings.aTextureCoord
   withTexture2D s.texture 0 s.bindings.uSampler 0
   bindBuf s.cubeVertexIndices
   drawElements TRIANGLES s.cubeVertexIndices.bufferSize
@@ -322,7 +326,7 @@ drawScene stRef = do
 setLightning :: forall eff. (State MyBindings) -> EffWebGL eff Unit
 setLightning s = do
   lighting <- getElementByIdBool "lighting"
-  setUniformBooleans s.bindings.uUseLighting [lighting]
+  setUniformBoolean s.bindings.uUseLighting lighting
   if lighting
     then do
       ar <- getElementByIdFloat "ambientR"

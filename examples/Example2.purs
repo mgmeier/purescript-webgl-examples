@@ -52,19 +52,19 @@ main =
             clearColor 0.0 0.0 0.0 1.0
             enable DEPTH_TEST
 
-            buf1 <- makeBufferSimple [0.0,  1.0,  0.0,
+            buf1 <- makeBufferFloat [0.0,  1.0,  0.0,
                                 (-1.0), (-1.0),  0.0,
                                 1.0, (-1.0),  0.0]
-            buf1Colors <- makeBufferSimple  [
+            buf1Colors <- makeBufferFloat  [
                                 1.0, 0.0, 0.0, 1.0,
                                 0.0, 1.0, 0.0, 1.0,
                                 0.0, 0.0, 1.0, 1.0
                                 ]
-            buf2 <- makeBufferSimple [1.0,  1.0,  0.0,
+            buf2 <- makeBufferFloat [1.0,  1.0,  0.0,
                                (-1.0), 1.0,  0.0,
                                 1.0, (-1.0),  0.0,
                                (-1.0), (-1.0),  0.0]
-            buf2Colors <- makeBufferSimple
+            buf2Colors <- makeBufferFloat
                                [0.5, 0.5, 1.0, 1.0,
                                0.5, 0.5, 1.0, 1.0,
                                0.5, 0.5, 1.0, 1.0,
@@ -80,13 +80,13 @@ main =
             let mvMatrix = M.translate  (V3.vec3 (-1.5) 0.0 (-7.0)) M.identity
             setUniformFloats bindings.uMVMatrix (M.toArray mvMatrix)
 
-            bindPointBuf buf1Colors bindings.aVertexColor
+            bindBufAndSetVertexAttr buf1Colors bindings.aVertexColor
             drawArr TRIANGLES buf1 bindings.aVertexPosition
 
             let mvMatrix' = M.translate (V3.vec3 3.0 0.0 0.0) mvMatrix
             setUniformFloats bindings.uMVMatrix (M.toArray mvMatrix')
 
-            bindPointBuf buf2Colors bindings.aVertexColor
+            bindBufAndSetVertexAttr buf2Colors bindings.aVertexColor
             drawArr TRIANGLE_STRIP buf2 bindings.aVertexPosition
 
             trace "WebGL completed"

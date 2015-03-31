@@ -19,6 +19,7 @@ import Control.Monad.ST
 import Debug.Trace
 import Data.Tuple
 import Data.Date
+import Data.Time
 import Data.Maybe
 import Data.Maybe.Unsafe (fromJust)
 import Data.Array
@@ -175,8 +176,8 @@ main = do
         withShaders shaders
                     (\s -> alert s)
                       \ bindings -> do
-          cubeVertices <- makeBufferSimple cubeV
-          textureCoords <- makeBufferSimple texCoo
+          cubeVertices <- makeBufferFloat cubeV
+          textureCoords <- makeBufferFloat texCoo
           cubeVertexIndices <- makeBuffer ELEMENT_ARRAY_BUFFER T.asUint16Array cvi
           clearColor 0.0 0.0 0.0 1.0
           enable DEPTH_TEST
@@ -220,10 +221,13 @@ tick stRef = do
   animate stRef
   requestAnimationFrame (tick stRef)
 
+unpackMilliseconds :: Milliseconds -> Number
+unpackMilliseconds (Milliseconds n) = n
+
 animate ::  forall h eff . STRef h State -> EffWebGL (st :: ST h, now :: Now |eff) Unit
 animate stRef = do
   s <- readSTRef stRef
-  timeNow <- liftM1 toEpochMilliseconds now
+  timeNow <- liftM1 (unpackMilliseconds <<< toEpochMilliseconds) now
   case s.lastTime of
     Nothing -> writeSTRef stRef (s {lastTime = Just timeNow})
     Just lastt ->
@@ -252,8 +256,8 @@ drawScene stRef = do
             $ M.identity
   setUniformFloats s.uMVMatrix (M.toArray mvMatrix)
 
-  bindPointBuf s.cubeVertices s.aVertexPosition
-  bindPointBuf s.textureCoords s.aTextureCoord
+  bindBufAndSetVertexAttr s.cubeVertices s.aVertexPosition
+  bindBufAndSetVertexAttr s.textureCoords s.aTextureCoord
 
   withTexture2D (fromJust $ s.textures !! s.filterInd) 0 s.uSampler 0
 

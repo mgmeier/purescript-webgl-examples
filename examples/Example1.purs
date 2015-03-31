@@ -59,7 +59,7 @@ main = runWebGL "glcanvas" (\s -> alert s)
                           M.identity
         setUniformFloats bindings.uMVMatrix (M.toArray mvMatrix)
 
-        buf1 <- makeBufferSimple [0.0,  1.0,  0.0,
+        buf1 <- makeBufferFloat [0.0,  1.0,  0.0,
                            (-1.0), (-1.0),  0.0,
                             1.0, (-1.0),  0.0]
         drawArr TRIANGLES buf1 bindings.aVertexPosition
@@ -68,7 +68,7 @@ main = runWebGL "glcanvas" (\s -> alert s)
                           mvMatrix
         setUniformFloats bindings.uMVMatrix (M.toArray mvMatrix')
 
-        buf2 <- makeBufferSimple [1.0,  1.0,  0.0,
+        buf2 <- makeBufferFloat [1.0,  1.0,  0.0,
                            (-1.0), 1.0,  0.0,
                             1.0, (-1.0),  0.0,
                            (-1.0), (-1.0),  0.0]
