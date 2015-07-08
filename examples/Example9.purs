@@ -1,7 +1,4 @@
--- needs psc >= 0.6.6
--- need to start chrome with --allow-file-access-from-files to be able to load local files
--- Example 9: Moving Objects (Open with index9.html)
-module Main where
+module Example9 where
 
 import Control.Monad.Eff.WebGL
 import Graphics.WebGL
@@ -266,7 +263,7 @@ drawScene stRef = do
     pMatrix = M.makePerspective 45 (canvasWidth / canvasHeight) 0.1 100.0
     mvMatrix = M.rotate (degToRad s.tilt) (V.vec3' [1, 0, 0]) $ M.translate (V.vec3 0.0 0.0 s.z) $ M.identity
     ss = zip s.stars (iterateN (+spinStep) (length s.stars) s.spin)
-  
+
   setUniformFloats s.bindings.uPMatrix (M.toArray pMatrix)
   for_ ss $ starDraw s mvMatrix twinkle
 

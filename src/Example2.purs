@@ -1,5 +1,6 @@
-module Main where
+module Example2 where
 
+import Prelude
 import Control.Monad.Eff.WebGL
 import Graphics.WebGL
 import qualified Data.Matrix4 as M
@@ -8,8 +9,10 @@ import qualified Data.Vector3 as V3
 import Control.Monad.Eff.Alert
 
 import Control.Monad.Eff
-import Debug.Trace
+import Control.Monad.Eff.Console
 import Data.Tuple
+import Data.Int (toNumber)
+
 
 shaders :: Shaders {aVertexPosition :: Attribute Vec3, aVertexColor :: Attribute Vec3,
                       uPMatrix :: Uniform Mat4, uMVMatrix:: Uniform Mat4}
@@ -39,13 +42,13 @@ shaders = Shaders
       }
   """
 
-main :: Eff (trace :: Trace, alert :: Alert) Unit
+main :: Eff (console :: CONSOLE, alert :: Alert) Unit
 main =
   runWebGL
     "glcanvas"
     (\s -> alert s)
       \ context -> do
-        trace "WebGL started"
+        log "WebGL started"
         withShaders shaders
                     (\s -> alert s)
           \ bindings -> do
@@ -75,7 +78,7 @@ main =
             viewport 0 0 canvasWidth canvasHeight
             clear [COLOR_BUFFER_BIT , DEPTH_BUFFER_BIT]
 
-            let pMatrix = M.makePerspective 45 (canvasWidth / canvasHeight) 0.1 100.0
+            let pMatrix = M.makePerspective 45.0 (toNumber canvasWidth / toNumber canvasHeight) 0.1 100.0
             setUniformFloats bindings.uPMatrix (M.toArray pMatrix)
             let mvMatrix = M.translate  (V3.vec3 (-1.5) 0.0 (-7.0)) M.identity
             setUniformFloats bindings.uMVMatrix (M.toArray mvMatrix)
@@ -89,4 +92,4 @@ main =
             bindBufAndSetVertexAttr buf2Colors bindings.aVertexColor
             drawArr TRIANGLE_STRIP buf2 bindings.aVertexPosition
 
-            trace "WebGL completed"
+            log "WebGL completed"

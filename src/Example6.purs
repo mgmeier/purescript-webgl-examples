@@ -1,5 +1,6 @@
 module Example6 where
 
+import Prelude
 import Control.Monad.Eff.WebGL
 import Graphics.WebGL
 import Graphics.WebGLTexture
@@ -13,14 +14,18 @@ import qualified Data.TypedArray as T
 import Control.Monad.Eff
 import Control.Monad
 import Control.Monad.ST
-import Debug.Trace
+import Control.Monad.Eff.Console
 import Data.Tuple
 import Data.Date
 import Data.Time
 import Data.Maybe
 import Data.Maybe.Unsafe (fromJust)
 import Data.Array
-import Math
+import Data.Array.Unsafe (unsafeIndex)
+import Math hiding (log)
+import Data.Int (toNumber)
+import KeyEvent
+
 
 shaders :: Shaders {aVertexPosition :: Attribute Vec3, aTextureCoord :: Attribute Vec2,
                       uPMatrix :: Uniform Mat4, uMVMatrix:: Uniform Mat4, uSampler :: Uniform Sampler2D}
@@ -151,25 +156,25 @@ type State = {
                 cubeVertices :: Buffer T.Float32,
                 textureCoords :: Buffer T.Float32,
                 cubeVertexIndices :: Buffer T.Uint16,
-                textures :: [WebGLTex],
+                textures :: Array WebGLTex,
 
-                lastTime :: Maybe Number,
+                lastTime :: Maybe Int,
                 xRot :: Number,
                 xSpeed :: Number,
                 yRot :: Number,
                 ySpeed :: Number,
                 z :: Number,
-                filterInd :: Number,
-                currentlyPressedKeys :: [Number]
+                filterInd :: Int,
+                currentlyPressedKeys :: Array Int
             }
 
-main :: Eff (trace :: Trace, alert :: Alert, now :: Now) Unit
+main :: Eff (console :: CONSOLE, alert :: Alert, now :: Now) Unit
 main = do
   runWebGL
     "glcanvas"
     (\s -> alert s)
       \ context -> do
-        trace "WebGL started"
+        log "WebGL started"
         withShaders shaders
                     (\s -> alert s)
                       \ bindings -> do
@@ -195,11 +200,11 @@ main = do
                               textureCoords : textureCoords,
                               cubeVertexIndices : cubeVertexIndices,
                               textures : [texture1,texture2,texture3],
-                              lastTime : (Nothing :: Maybe Number),
+                              lastTime : (Nothing :: Maybe Int),
 
-                              xRot : 0,
+                              xRot : 0.0,
                               xSpeed : 1.0,
-                              yRot : 0,
+                              yRot : 0.0,
                               ySpeed : 1.0,
                               z : (-5.0),
                               filterInd : 0,
@@ -211,14 +216,14 @@ main = do
                   onKeyUp (handleKeyU stRef)
                   tick stRef
 
-tick :: forall h eff. STRef h State ->  EffWebGL (st :: ST h, trace :: Trace, now :: Now |eff) Unit
+tick :: forall h eff. STRef h State ->  EffWebGL (st :: ST h, console :: CONSOLE, now :: Now |eff) Unit
 tick stRef = do
   drawScene stRef
   handleKeys stRef
   animate stRef
   requestAnimationFrame (tick stRef)
 
-unpackMilliseconds :: Milliseconds -> Number
+unpackMilliseconds :: Milliseconds -> Int
 unpackMilliseconds (Milliseconds n) = n
 
 animate ::  forall h eff . STRef h State -> EffWebGL (st :: ST h, now :: Now |eff) Unit
@@ -230,8 +235,8 @@ animate stRef = do
     Just lastt ->
       let elapsed = timeNow - lastt
       in writeSTRef stRef (s {lastTime = Just timeNow,
-                              xRot = s.xRot + s.xSpeed * elapsed / 1000.0,
-                              yRot = s.yRot + s.ySpeed * elapsed / 1000.0
+                              xRot = s.xRot + s.xSpeed * toNumber elapsed / 1000.0,
+                              yRot = s.yRot + s.ySpeed * toNumber elapsed / 1000.0
                               })
   return unit
 
@@ -243,12 +248,12 @@ drawScene stRef = do
   viewport 0 0 canvasWidth canvasHeight
   clear [COLOR_BUFFER_BIT, DEPTH_BUFFER_BIT]
 
-  let pMatrix = M.makePerspective 45 (canvasWidth / canvasHeight) 0.1 100.0
+  let pMatrix = M.makePerspective 45.0 (toNumber canvasWidth / toNumber canvasHeight) 0.1 100.0
   setUniformFloats s.uPMatrix (M.toArray pMatrix)
 
   let mvMatrix =
-      M.rotate (degToRad s.xRot) (V3.vec3' [1, 0, 0])
-        $ M.rotate (degToRad s.yRot) (V3.vec3' [0, 1, 0])
+      M.rotate (degToRad s.xRot) (V3.vec3' [1.0, 0.0, 0.0])
+        $ M.rotate (degToRad s.yRot) (V3.vec3' [0.0, 1.0, 0.0])
           $ M.translate (V3.vec3 0.0 0.0 s.z)
             $ M.identity
   setUniformFloats s.uMVMatrix (M.toArray mvMatrix)
@@ -265,96 +270,69 @@ drawScene stRef = do
 
 -- | Convert from radians to degrees.
 radToDeg :: Number -> Number
-radToDeg x = x/pi*180
+radToDeg x = x/pi*180.0
 
 -- | Convert from degrees to radians.
 degToRad :: Number -> Number
-degToRad x = x/180*pi
+degToRad x = x/180.0*pi
 
 -- * Key handling
 
-handleKeys ::  forall h eff . STRef h State -> EffWebGL (trace :: Trace, st :: ST h |eff) Unit
+handleKeys ::  forall h eff . STRef h State -> EffWebGL (console :: CONSOLE, st :: ST h |eff) Unit
 handleKeys stRef = do
   s <- readSTRef stRef
   if null s.currentlyPressedKeys
     then return unit
     else
-      let z' = if elemIndex 33 s.currentlyPressedKeys /= -1
-                  then s.z - 0.05
-                  else s.z
-          z'' = if elemIndex 34 s.currentlyPressedKeys /= -1
-                  then z' + 0.05
-                  else z'
-          ySpeed' = if elemIndex 37 s.currentlyPressedKeys /= -1
-                  then s.ySpeed - 1
-                  else s.ySpeed
-          ySpeed'' = if elemIndex 39 s.currentlyPressedKeys /= -1
-                  then ySpeed' + 1
-                  else ySpeed'
-          xSpeed' = if elemIndex 38 s.currentlyPressedKeys /= -1
-                  then s.xSpeed - 1
-                  else s.xSpeed
-          xSpeed'' = if elemIndex 40 s.currentlyPressedKeys /= -1
-                  then xSpeed' + 1
-                  else xSpeed'
+      let z' = case elemIndex 33 s.currentlyPressedKeys of
+                  Just _ ->  s.z - 0.05
+                  Nothing -> s.z
+          z'' = case elemIndex 34 s.currentlyPressedKeys of
+                  Just _ ->  z' + 0.05
+                  Nothing -> z'
+          ySpeed' = case elemIndex 37 s.currentlyPressedKeys of
+                  Just _ ->  s.ySpeed - 1.0
+                  Nothing -> s.ySpeed
+          ySpeed'' = case elemIndex 39 s.currentlyPressedKeys of
+                  Just _ ->  ySpeed' + 1.0
+                  Nothing -> ySpeed'
+          xSpeed' = case elemIndex 38 s.currentlyPressedKeys of
+                  Just _ ->  s.xSpeed - 1.0
+                  Nothing -> s.xSpeed
+          xSpeed'' = case elemIndex 40 s.currentlyPressedKeys of
+                  Just _ ->  xSpeed' + 1.0
+                  Nothing -> xSpeed'
       in do
         writeSTRef stRef (s{z=z'',ySpeed=ySpeed'',xSpeed=xSpeed''})
-        trace (show s.currentlyPressedKeys)
+        log (show s.currentlyPressedKeys)
         return unit
 
-handleKeyD :: forall h eff. STRef h State -> Event -> Eff (st :: ST h, trace :: Trace | eff) Unit
+handleKeyD :: forall h eff. STRef h State -> Event -> Eff (st :: ST h, console :: CONSOLE | eff) Unit
 handleKeyD stRef event = do
-  trace "handleKeyDown"
   let key = eventGetKeyCode event
+  log ("handleKeyDown: " ++ show key)
   s <- readSTRef stRef
   let f = if key == 70
             then if s.filterInd + 1 == 3
                     then 0
                     else s.filterInd + 1
             else s.filterInd
-      cp = if elemIndex key s.currentlyPressedKeys /= -1
-              then s.currentlyPressedKeys
-              else key : s.currentlyPressedKeys
-  trace ("filterInd: " ++ show f)
+      cp = case elemIndex key s.currentlyPressedKeys of
+                      Just _ ->  s.currentlyPressedKeys
+                      Nothing -> key : s.currentlyPressedKeys
+  log ("filterInd: " ++ show f)
   writeSTRef stRef (s {currentlyPressedKeys = cp, filterInd = f})
---  trace (show s.currentlyPressedKeys)
+  log (show s.currentlyPressedKeys)
   return unit
 
-handleKeyU :: forall h eff. STRef h State -> Event -> Eff (st :: ST h, trace :: Trace | eff) Unit
+handleKeyU :: forall h eff. STRef h State -> Event -> Eff (st :: ST h, console :: CONSOLE | eff) Unit
 handleKeyU stRef event = do
-  trace "handleKeyUp"
+  log "handleKeyUp"
   let key = eventGetKeyCode event
   s <- readSTRef stRef
-  if elemIndex key s.currentlyPressedKeys == -1
-    then return unit
-    else do
+  case elemIndex key s.currentlyPressedKeys of
+    Nothing ->  return unit
+    Just _ -> do
       writeSTRef stRef (s {currentlyPressedKeys = delete key s.currentlyPressedKeys})
-      trace (show s.currentlyPressedKeys)
+      log (show s.currentlyPressedKeys)
       return unit
-
-foreign import data Event :: *
-
-foreign import onKeyDown
-"""
-        function onKeyDown(handleKeyDown) {
-          return function() {
-            document.onkeydown = function(event) {handleKeyDown(event)()};
-            };}
-""" ::  forall eff. (Event -> Eff (webgl :: WebGl | eff) Unit)
-    -> Eff (webgl :: WebGl | eff) Unit
-
-foreign import onKeyUp
-"""
-        function onKeyUp(handleKeyUp) {
-          return function() {
-            document.onkeyup = function(event) {handleKeyUp(event)()};
-            };}
-""" ::  forall eff. (Event -> Eff (webgl :: WebGl | eff) Unit)
-    -> Eff (webgl :: WebGl | eff) Unit
-
-foreign import eventGetKeyCode
-"""
-  function eventGetKeyCode (event) {
-      return (event.keyCode);
-      }
-""" :: Event -> Number

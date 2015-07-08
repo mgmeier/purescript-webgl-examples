@@ -1,5 +1,6 @@
 module Example4 where
 
+import Prelude
 import Control.Monad.Eff.WebGL
 import Graphics.WebGL
 import qualified Data.Matrix4 as M
@@ -11,12 +12,13 @@ import qualified Data.TypedArray as T
 
 import Control.Monad.Eff
 import Control.Monad
-import Debug.Trace
+import Control.Monad.Eff.Console
 import Data.Date
 import Data.Time
 import Data.Maybe
 import Data.Array
-import Math
+import Math hiding (log)
+import Data.Int (toNumber)
 
 shaders :: Shaders {aVertexPosition :: Attribute Vec3, aVertexColor :: Attribute Vec3,
                       uPMatrix :: Uniform Mat4, uMVMatrix:: Uniform Mat4}
@@ -58,18 +60,18 @@ type State = {
                 cubeVertices :: Buffer T.Float32,
                 cubeColors :: Buffer T.Float32,
                 cubeVertexIndices :: Buffer T.Uint16,
-                lastTime :: Maybe Number,
+                lastTime :: Maybe Int,
                 rPyramid :: Number,
                 rCube :: Number
               }
 
-main :: Eff (trace :: Trace, alert :: Alert, now :: Now) Unit
+main :: Eff (console :: CONSOLE, alert :: Alert, now :: Now) Unit
 main =
   runWebGL
     "glcanvas"
     (\s -> alert s)
       \ context -> do
-        trace "WebGL started"
+        log "WebGL started"
         withShaders shaders
                     (\s -> alert s)
                       \ bindings -> do
@@ -178,19 +180,19 @@ main =
                         cubeColors : cubeColors,
                         cubeVertexIndices : cubeVertexIndices,
                         lastTime : Nothing,
-                        rPyramid : 0,
-                        rCube : 0
+                        rPyramid : 0.0,
+                        rCube : 0.0
                       }
           tick state
 
-tick :: forall eff. State ->  EffWebGL (trace :: Trace, now :: Now |eff) Unit
+tick :: forall eff. State ->  EffWebGL (console :: CONSOLE, now :: Now |eff) Unit
 tick state = do
---  trace ("tick: " ++ show state.lastTime)
+--  log ("tick: " ++ show state.lastTime)
   drawScene state
   state' <- animate state
   requestAnimationFrame (tick state')
 
-unpackMilliseconds :: Milliseconds -> Number
+unpackMilliseconds :: Milliseconds -> Int
 unpackMilliseconds (Milliseconds n) = n
 
 animate ::  forall eff. State -> EffWebGL (now :: Now |eff) State
@@ -201,8 +203,8 @@ animate state = do
     Just lastt ->
       let elapsed = timeNow - lastt
       in return state {lastTime = Just timeNow,
-                       rPyramid = state.rPyramid + (90 * elapsed) / 1000.0,
-                       rCube = state.rCube + (75 * elapsed) / 1000.0}
+                       rPyramid = state.rPyramid + (90.0 * toNumber elapsed) / 1000.0,
+                       rCube = state.rCube + (75.0 * toNumber elapsed) / 1000.0}
 
 drawScene :: forall eff. State -> EffWebGL (now :: Now |eff) Unit
 drawScene s = do
@@ -212,10 +214,10 @@ drawScene s = do
       clear [COLOR_BUFFER_BIT, DEPTH_BUFFER_BIT]
 
 -- The pyramid
-      let pMatrix = M.makePerspective 45 (canvasWidth / canvasHeight) 0.1 100.0
+      let pMatrix = M.makePerspective 45.0 (toNumber canvasWidth / toNumber canvasHeight) 0.1 100.0
       setUniformFloats s.uPMatrix (M.toArray pMatrix)
       let mvMatrix =
-          M.rotate (degToRad s.rPyramid) (V3.vec3' [0, 1, 0])
+          M.rotate (degToRad s.rPyramid) (V3.vec3' [0.0, 1.0, 0.0])
             $ M.translate  (V3.vec3 (-1.5) 0.0 (-8.0))
               $ M.identity
 
@@ -225,7 +227,7 @@ drawScene s = do
 
 -- The cube
       let mvMatrix =
-          M.rotate (degToRad s.rCube) (V3.vec3' [1, 1, 1])
+          M.rotate (degToRad s.rCube) (V3.vec3' [1.0, 1.0, 1.0])
             $ M.translate  (V3.vec3 (1.5) 0.0 (-8.0))
               $ M.identity
       setUniformFloats s.uMVMatrix (M.toArray mvMatrix)
@@ -238,8 +240,8 @@ drawScene s = do
 
 -- | Convert from radians to degrees.
 radToDeg :: Number -> Number
-radToDeg x = x/pi*180
+radToDeg x = x/pi*180.0
 
 -- | Convert from degrees to radians.
 degToRad :: Number -> Number
-degToRad x = x/180*pi
+degToRad x = x/180.0*pi

@@ -1,11 +1,31 @@
 {
-  "name": "purescript-webgl-examples",
-  "version": "0.1.0",
+  "name": "purescript-webgl",
+  "homepage": "https://github.com/jutaro/purescript-webgl",
+  "authors": [
+    "Jürgen Nicklisch-Franken <juergen.nicklisch@symbolian.net>",
+    "Michael Karg <michael.karg@symbolian.net>"
+  ],
+  "description": "WebGL binding for purescript",
+  "keywords": [
+    "purescript"
+  ],
+  "license": "Apache-2.0",
+  "ignore": [
+    "**/.*",
+    "bower_components",
+    "node_modules",
+    "output",
+    "tests",
+    "tmp",
+    "bower.json",
+    "Gruntfile.js",
+    "package.json"
+  ],
   "dependencies": {
-    "purescript-webgl" : "*",
+    "purescript-webgl" : "/home/jutaro/Develop/purescript-webgl/.git",
     "purescript-datetime" : "*",
     "purescript-random" : "*",
-    "purescript-extensions" : "*"
-  },
-  "license": "Apache-2.0"
+    "purescript-extensions" : "*",
+    "purescript-console" : "*"
+  }
 }
