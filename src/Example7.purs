@@ -1,15 +1,18 @@
-module Example6 where
+module Example7 where
 
 import Prelude
 import Control.Monad.Eff.WebGL
 import Graphics.WebGL
+import Graphics.WebGLRaw
 import Graphics.WebGLTexture
-import qualified Data.Matrix4 as M
 import qualified Data.Matrix as M
-import qualified Data.Vector3 as V3
-import Control.Monad.Eff.Alert
+import Data.Matrix3 (normalFromMat4)
+import qualified Data.Matrix4 as M
+import qualified Data.Vector as V
+import qualified Data.Vector3 as V
 import qualified Data.ArrayBuffer.Types as T
 import qualified Data.TypedArray as T
+import Control.Monad.Eff.Alert
 
 import Control.Monad.Eff
 import Control.Monad
@@ -21,40 +24,63 @@ import Data.Time
 import Data.Maybe
 import Data.Maybe.Unsafe (fromJust)
 import Data.Array
-import Data.Array.Unsafe (unsafeIndex)
 import Math hiding (log)
 import Data.Int (toNumber)
 import KeyEvent
 
+type MyBindings =
+              (aVertexPosition :: Attribute Vec3, aVertexNormal :: Attribute Vec3,aTextureCoord :: Attribute Vec2,
+              uPMatrix :: Uniform Mat4, uMVMatrix:: Uniform Mat4, uNMatrix:: Uniform Mat4, uSampler :: Uniform Sampler2D,
+              uUseLighting :: Uniform Bool, uAmbientColor :: Uniform Vec3, uLightingDirection :: Uniform Vec3,
+              uDirectionalColor :: Uniform Vec3)
 
-shaders :: Shaders {aVertexPosition :: Attribute Vec3, aTextureCoord :: Attribute Vec2,
-                      uPMatrix :: Uniform Mat4, uMVMatrix:: Uniform Mat4, uSampler :: Uniform Sampler2D}
+shaders :: Shaders (Object MyBindings)
 shaders = Shaders
+
   """
       precision mediump float;
 
       varying vec2 vTextureCoord;
+      varying vec3 vLightWeighting;
 
       uniform sampler2D uSampler;
 
       void main(void) {
-          gl_FragColor = texture2D(uSampler, vec2(vTextureCoord.s, vTextureCoord.t));
+          vec4 textureColor = texture2D(uSampler, vec2(vTextureCoord.s, vTextureCoord.t));
+          gl_FragColor = vec4(textureColor.rgb * vLightWeighting, textureColor.a);
       }
   """
 
   """
       attribute vec3 aVertexPosition;
+      attribute vec3 aVertexNormal;
       attribute vec2 aTextureCoord;
 
       uniform mat4 uMVMatrix;
       uniform mat4 uPMatrix;
+      uniform mat3 uNMatrix;
+
+      uniform vec3 uAmbientColor;
+
+      uniform vec3 uLightingDirection;
+      uniform vec3 uDirectionalColor;
+
+      uniform bool uUseLighting;
 
       varying vec2 vTextureCoord;
-
+      varying vec3 vLightWeighting;
 
       void main(void) {
           gl_Position = uPMatrix * uMVMatrix * vec4(aVertexPosition, 1.0);
           vTextureCoord = aTextureCoord;
+
+          if (!uUseLighting) {
+              vLightWeighting = vec3(1.0, 1.0, 1.0);
+          } else {
+              vec3 transformedNormal = uNMatrix * aVertexNormal;
+              float directionalLightWeighting = max(dot(transformedNormal, uLightingDirection), 0.0);
+              vLightWeighting = uAmbientColor + uDirectionalColor * directionalLightWeighting;
+          }
       }
   """
 
@@ -94,6 +120,44 @@ cubeV = [
         -1.0, -1.0,  1.0,
         -1.0,  1.0,  1.0,
         -1.0,  1.0, -1.0
+      ]
+
+vertexNormals = [
+        -- Front face
+         0.0,  0.0,  1.0,
+         0.0,  0.0,  1.0,
+         0.0,  0.0,  1.0,
+         0.0,  0.0,  1.0,
+
+        -- Back face
+         0.0,  0.0, -1.0,
+         0.0,  0.0, -1.0,
+         0.0,  0.0, -1.0,
+         0.0,  0.0, -1.0,
+
+        -- Top face
+         0.0,  1.0,  0.0,
+         0.0,  1.0,  0.0,
+         0.0,  1.0,  0.0,
+         0.0,  1.0,  0.0,
+
+        -- Bottom face
+         0.0, -1.0,  0.0,
+         0.0, -1.0,  0.0,
+         0.0, -1.0,  0.0,
+         0.0, -1.0,  0.0,
+
+        -- Right face
+         1.0,  0.0,  0.0,
+         1.0,  0.0,  0.0,
+         1.0,  0.0,  0.0,
+         1.0,  0.0,  0.0,
+
+        -- Left face
+        -1.0,  0.0,  0.0,
+        -1.0,  0.0,  0.0,
+        -1.0,  0.0,  0.0,
+        -1.0,  0.0,  0.0
       ]
 
 texCoo = [
@@ -143,20 +207,15 @@ cvi = [
         20, 21, 22,   20, 22, 23  -- Left face
       ]
 
-type State = {
+type State bindings = {
                 context :: WebGLContext,
-                shaderProgram :: WebGLProg,
-
-                aVertexPosition :: Attribute Vec3,
-                aTextureCoord :: Attribute Vec2,
-                uPMatrix :: Uniform Mat4,
-                uMVMatrix :: Uniform Mat4,
-                uSampler :: Uniform Sampler2D,
+                bindings :: {webGLProgram :: WebGLProg | bindings},
 
                 cubeVertices :: Buffer T.Float32,
+                cubeVerticesNormal :: Buffer T.Float32,
                 textureCoords :: Buffer T.Float32,
                 cubeVertexIndices :: Buffer T.Uint16,
-                textures :: Array WebGLTex,
+                texture :: WebGLTex,
 
                 lastTime :: Maybe Int,
                 xRot :: Number,
@@ -164,9 +223,8 @@ type State = {
                 yRot :: Number,
                 ySpeed :: Number,
                 z :: Number,
-                filterInd :: Int,
                 currentlyPressedKeys :: Array Int
-            }
+              }
 
 main :: Eff (console :: CONSOLE, alert :: Alert, now :: Now) Unit
 main = do
@@ -175,48 +233,43 @@ main = do
     (\s -> alert s)
       \ context -> do
         log "WebGL started"
-        withShaders shaders
-                    (\s -> alert s)
-                      \ bindings -> do
+        withShaders
+            shaders
+            (\s -> alert s)
+            \ bindings -> do
           cubeVertices <- makeBufferFloat cubeV
+          cubeVerticesNormal <- makeBufferFloat vertexNormals
+
           textureCoords <- makeBufferFloat texCoo
           cubeVertexIndices <- makeBuffer ELEMENT_ARRAY_BUFFER T.asUint16Array cvi
           clearColor 0.0 0.0 0.0 1.0
           enable DEPTH_TEST
-          texture2DFor "crate.gif" NEAREST \texture1 ->
-            texture2DFor "crate.gif" LINEAR \texture2 ->
-              texture2DFor "crate.gif" MIPMAP \texture3 -> do
-                let state = {
-                              context : context,
-                              shaderProgram : bindings.webGLProgram,
+          texture2DFor "crate.gif" MIPMAP \texture -> do
+            let state = {
+                          context : context,
+                          bindings : bindings,
 
-                              aVertexPosition : bindings.aVertexPosition,
-                              aTextureCoord : bindings.aTextureCoord,
-                              uPMatrix : bindings.uPMatrix,
-                              uMVMatrix : bindings.uMVMatrix,
-                              uSampler : bindings.uSampler,
+                          cubeVertices : cubeVertices,
+                          cubeVerticesNormal : cubeVerticesNormal,
+                          textureCoords : textureCoords,
+                          cubeVertexIndices : cubeVertexIndices,
+                          texture : texture,
+                          lastTime : Nothing,
 
-                              cubeVertices : cubeVertices,
-                              textureCoords : textureCoords,
-                              cubeVertexIndices : cubeVertexIndices,
-                              textures : [texture1,texture2,texture3],
-                              lastTime : (Nothing :: Maybe Int),
+                          xRot : 0.0,
+                          xSpeed : 1.0,
+                          yRot : 0.0,
+                          ySpeed : 1.0,
+                          z : (-5.0),
+                          currentlyPressedKeys : []
+                        } :: State MyBindings
+            runST do
+              stRef <- newSTRef state
+              onKeyDown (handleKeyD stRef)
+              onKeyUp (handleKeyU stRef)
+              tick (stRef :: STRef _ (State MyBindings))
 
-                              xRot : 0.0,
-                              xSpeed : 1.0,
-                              yRot : 0.0,
-                              ySpeed : 1.0,
-                              z : (-5.0),
-                              filterInd : 0,
-                              currentlyPressedKeys : []
-                            }
-                runST do
-                  stRef <- newSTRef state
-                  onKeyDown (handleKeyD stRef)
-                  onKeyUp (handleKeyU stRef)
-                  tick stRef
-
-tick :: forall h eff. STRef h State ->  EffWebGL (st :: ST h, console :: CONSOLE, now :: Now |eff) Unit
+tick :: forall h eff. STRef h (State MyBindings) ->  EffWebGL (st :: ST h, console :: CONSOLE, now :: Now |eff) Unit
 tick stRef = do
   drawScene stRef
   handleKeys stRef
@@ -226,7 +279,7 @@ tick stRef = do
 unpackMilliseconds :: Milliseconds -> Int
 unpackMilliseconds (Milliseconds n) = n
 
-animate ::  forall h eff . STRef h State -> EffWebGL (st :: ST h, now :: Now |eff) Unit
+animate ::  forall h eff . STRef h (State MyBindings) -> EffWebGL (st :: ST h, now :: Now |eff) Unit
 animate stRef = do
   s <- readSTRef stRef
   timeNow <- liftM1 (unpackMilliseconds <<< toEpochMilliseconds) now
@@ -240,7 +293,7 @@ animate stRef = do
                               })
   return unit
 
-drawScene :: forall h eff . STRef h State -> EffWebGL (st :: ST h |eff) Unit
+drawScene :: forall h eff . STRef h (State MyBindings) -> EffWebGL (st :: ST h |eff) Unit
 drawScene stRef = do
   s <- readSTRef stRef
   canvasWidth <- getCanvasWidth s.context
@@ -249,24 +302,49 @@ drawScene stRef = do
   clear [COLOR_BUFFER_BIT, DEPTH_BUFFER_BIT]
 
   let pMatrix = M.makePerspective 45.0 (toNumber canvasWidth / toNumber canvasHeight) 0.1 100.0
-  setUniformFloats s.uPMatrix (M.toArray pMatrix)
+  setUniformFloats s.bindings.uPMatrix (M.toArray pMatrix)
 
   let mvMatrix =
-      M.rotate (degToRad s.xRot) (V3.vec3' [1.0, 0.0, 0.0])
-        $ M.rotate (degToRad s.yRot) (V3.vec3' [0.0, 1.0, 0.0])
-          $ M.translate (V3.vec3 0.0 0.0 s.z)
+      M.rotate (degToRad s.yRot) (V.vec3' [0.0, 1.0, 0.0])
+        $ M.rotate (degToRad s.xRot) (V.vec3' [1.0, 0.0, 0.0])
+          $ M.translate  (V.vec3 0.0 0.0 s.z)
             $ M.identity
-  setUniformFloats s.uMVMatrix (M.toArray mvMatrix)
+  setUniformFloats s.bindings.uMVMatrix (M.toArray mvMatrix)
 
-  bindBufAndSetVertexAttr s.cubeVertices s.aVertexPosition
-  bindBufAndSetVertexAttr s.textureCoords s.aTextureCoord
+  let nMatrix = fromJust $ normalFromMat4 mvMatrix
+  setUniformFloats s.bindings.uNMatrix (M.toArray nMatrix)
 
-  withTexture2D (fromJust $ s.textures !! s.filterInd) 0 s.uSampler 0
+  setLightning s
 
+  bindBufAndSetVertexAttr s.cubeVertices s.bindings.aVertexPosition
+  bindBufAndSetVertexAttr s.cubeVerticesNormal s.bindings.aVertexNormal
+  bindBufAndSetVertexAttr s.textureCoords s.bindings.aTextureCoord
+  withTexture2D s.texture 0 s.bindings.uSampler 0
   bindBuf s.cubeVertexIndices
   drawElements TRIANGLES s.cubeVertexIndices.bufferSize
 
-
+setLightning :: forall eff. (State MyBindings) -> EffWebGL eff Unit
+setLightning s = do
+  lighting <- getElementByIdBool "lighting"
+  setUniformBoolean s.bindings.uUseLighting lighting
+  if lighting
+    then do
+      ar <- getElementByIdFloat "ambientR"
+      ag <- getElementByIdFloat "ambientG"
+      ab <- getElementByIdFloat "ambientB"
+      setUniformFloats s.bindings.uAmbientColor [ar, ag, ab]
+      lx <- getElementByIdFloat "lightDirectionX"
+      ly <- getElementByIdFloat "lightDirectionY"
+      lz <- getElementByIdFloat "lightDirectionZ"
+      let v = V.scale (-1.0)
+                  $ V.normalize
+                    $ V.vec3 lx ly lz
+      setUniformFloats s.bindings.uLightingDirection (V.toArray v)
+      dr <- getElementByIdFloat "directionalR"
+      dg <- getElementByIdFloat "directionalG"
+      db <- getElementByIdFloat "directionalB"
+      setUniformFloats s.bindings.uDirectionalColor [dr, dg, db]
+    else return unit
 
 -- | Convert from radians to degrees.
 radToDeg :: Number -> Number
@@ -278,7 +356,7 @@ degToRad x = x/180.0*pi
 
 -- * Key handling
 
-handleKeys ::  forall h eff . STRef h State -> EffWebGL (console :: CONSOLE, st :: ST h |eff) Unit
+handleKeys ::  forall h eff . STRef h (State MyBindings) -> EffWebGL (console :: CONSOLE, st :: ST h |eff) Unit
 handleKeys stRef = do
   s <- readSTRef stRef
   if null s.currentlyPressedKeys
@@ -307,25 +385,19 @@ handleKeys stRef = do
 --        log (show s.currentlyPressedKeys)
         return unit
 
-handleKeyD :: forall h eff. STRef h State -> Event -> Eff (st :: ST h, console :: CONSOLE | eff) Unit
+handleKeyD :: forall h eff. STRef h (State MyBindings) -> Event -> Eff (st :: ST h, console :: CONSOLE | eff) Unit
 handleKeyD stRef event = do
+  log "handleKeyDown"
   let key = eventGetKeyCode event
-  log ("handleKeyDown: " ++ show key)
   s <- readSTRef stRef
-  let f = if key == 70
-            then if s.filterInd + 1 == 3
-                    then 0
-                    else s.filterInd + 1
-            else s.filterInd
-      cp = case elemIndex key s.currentlyPressedKeys of
-                      Just _ ->  s.currentlyPressedKeys
-                      Nothing -> key : s.currentlyPressedKeys
-  log ("filterInd: " ++ show f)
-  writeSTRef stRef (s {currentlyPressedKeys = cp, filterInd = f})
---   log (show s.currentlyPressedKeys)
+  let cp = case elemIndex key s.currentlyPressedKeys of
+                  Just _ ->  s.currentlyPressedKeys
+                  Nothing -> key : s.currentlyPressedKeys
+  writeSTRef stRef (s {currentlyPressedKeys = cp})
+--  log (show s.currentlyPressedKeys)
   return unit
 
-handleKeyU :: forall h eff. STRef h State -> Event -> Eff (st :: ST h, console :: CONSOLE | eff) Unit
+handleKeyU :: forall h eff. STRef h (State MyBindings) -> Event -> Eff (st :: ST h, console :: CONSOLE | eff) Unit
 handleKeyU stRef event = do
   log "handleKeyUp"
   let key = eventGetKeyCode event
