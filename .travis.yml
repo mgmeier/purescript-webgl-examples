@@ -12,9 +12,4 @@ install:
   - npm install
   - bower install
 script:
-  - grunt example1
-  - grunt example2
-  - grunt example3
-  - grunt example4
-  - grunt example5
-  - grunt example6
+  - ./run.sh
