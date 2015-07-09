@@ -88,7 +88,10 @@ type State bindings = {
                 spin    :: Number,
                 tilt    :: Number,
                 z       :: Number,
-                currentlyPressedKeys :: [Number]
+                currentlyPressedKeys :: [Number],
+
+                benchCount :: Number,
+                benchTime :: Number
             }
 
 vertices = [
@@ -194,8 +197,8 @@ main = do
             shaders
             (\s -> alert s)
             \ bindings -> do
-              vs <- makeBufferSimple vertices
-              textureCoords <- makeBufferSimple texCoo
+              vs <- makeBufferFloat vertices
+              textureCoords <- makeBufferFloat texCoo
               let starParams i = Tuple ((i / starCount) * 5.0) (i / starCount)
               ss <- mapM (uncurry starCreate <<< starParams) (0 .. (starCount-1))
               clearColor 0.0 0.0 0.0 1.0
@@ -213,7 +216,10 @@ main = do
                               spin  : 0.0,
                               tilt  : 90.0,
                               z     : (-15.0),
-                              currentlyPressedKeys : []
+                              currentlyPressedKeys : [],
+
+                              benchCount : 0,
+                              benchTime : 0
                             } :: State MyBindings
                 runST do
                   stRef <- newSTRef state
@@ -223,10 +229,25 @@ main = do
 
 tick :: forall h eff. STRef h (State MyBindings) ->  EffWebGL (st :: ST h, trace :: Trace, now :: Now, random :: Random |eff) Unit
 tick stRef = do
+  timeBefore <- liftM1 toEpochMilliseconds now
   drawScene stRef
   handleKeys stRef
   animate stRef
+  timeAfter <- liftM1 toEpochMilliseconds now
+  modifySTRef stRef \s -> s {benchTime = s.benchTime + (timeAfter - timeBefore)}
+  state <- readSTRef stRef
+  if state.benchCount < 1000
+    then do
+            modifySTRef stRef (\s -> s {benchCount = s.benchCount + 1})
+            return unit
+    else if state.benchCount == 1000
+        then do
+                trace ("Benchmark 1000 cycles time in milliseconds: " ++ show state.benchTime)
+                modifySTRef stRef (\s -> s {benchCount = s.benchCount + 1})
+                return unit
+        else return unit
   requestAnimationFrame (tick stRef)
+
 
 animate ::  forall h eff . STRef h (State MyBindings) -> EffWebGL (st :: ST h, now :: Now, random :: Random |eff) Unit
 animate stRef = do
@@ -239,7 +260,7 @@ animate stRef = do
         elapsed = timeNow - lastt
         spin'   = s.spin + (spinStep * length s.stars)
       in do
-        stars' <- mapM (starAnimate elapsed) s.stars
+        stars' <- mapM (starAnimate s.benchCount) s.stars
         writeSTRef stRef (s {lastTime = Just timeNow, spin=spin', stars=stars'})
   return unit
 
@@ -254,15 +275,15 @@ drawScene stRef = do
   clear [COLOR_BUFFER_BIT, DEPTH_BUFFER_BIT]
   blendFunc SRC_ALPHA ONE
   enable BLEND
-  bindPointBuf s.starVertices s.bindings.aVertexPosition
-  bindPointBuf s.textureCoords s.bindings.aTextureCoord
+  bindBufAndSetVertexAttr s.starVertices s.bindings.aVertexPosition
+  bindBufAndSetVertexAttr s.textureCoords s.bindings.aTextureCoord
   withTexture2D s.texture 0 s.bindings.uSampler 0
 
   let
     pMatrix = M.makePerspective 45 (canvasWidth / canvasHeight) 0.1 100.0
     mvMatrix = M.rotate (degToRad s.tilt) (V.vec3' [1, 0, 0]) $ M.translate (V.vec3 0.0 0.0 s.z) $ M.identity
     ss = zip s.stars (iterateN (+spinStep) (length s.stars) s.spin)
-  
+
   setUniformFloats s.bindings.uPMatrix (M.toArray pMatrix)
   for_ ss $ starDraw s mvMatrix twinkle
 

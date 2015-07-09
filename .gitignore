@@ -1,6 +1,9 @@
+.psci
+.psci_modules/
 bower_components/
-dist/
 node_modules/
-bower.json
-.DS_Store
-
+output/
+tmp/
+*~
+dist/*.js
+.bowerrc
