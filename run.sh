@@ -14,4 +14,4 @@ psc-bundle output/**/*.js -m Example6 -o dist/Main6.js
 psc-bundle output/**/*.js -m Example7 -o dist/Main7.js
 psc-bundle output/**/*.js -m Example8 -o dist/Main8.js
 psc-bundle output/**/*.js -m Example9 -o dist/Main9.js
-# psc-bundle output/**/*.js -m Example9ST -o dist/Main9ST.js
+psc-bundle output/**/*.js -m Example9ST -o dist/Main9ST.js

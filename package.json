@@ -1,10 +1,11 @@
 {
   "private": true,
   "devDependencies": {
-    "gulp":             "~3.8.10",
-    "gulp-purescript":  "~0.1.2",
-    "gulp-run":         "~1.6.4",
-    "run-sequence":     "~1.0.1",
-    "gulp-jsvalidate":  "~1.0.1"
+    "pulp": "^4.0.2",
+    "browserify": "*",
+    "benchmark": "~1.0.0",
+    "microtime": "~1.2.0"
+  },
+  "scripts": {
+    "bench": "./benchmarks/run.sh"
   }
-}

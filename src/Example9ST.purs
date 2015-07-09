@@ -1,11 +1,14 @@
-module Example9 where
+module Example9ST where
 
+import Prelude
 import Control.Monad.Eff.WebGL
 import Graphics.WebGL
 import Graphics.WebGLRaw
 import Graphics.WebGLTexture
 import qualified Data.Matrix as M
 import qualified Data.Matrix4 as M
+import qualified Data.ST.Matrix as M
+import qualified Data.ST.Matrix4 as M
 import qualified Data.Vector as V
 import qualified Data.Vector3 as V
 import qualified Data.ArrayBuffer.Types as T
@@ -17,7 +20,7 @@ import Control.Monad.Eff
 import Control.Monad.Eff.Random
 import Control.Monad
 import Control.Monad.ST
-import Debug.Trace
+import Control.Monad.Eff.Console
 import Data.Tuple
 import Data.Foldable (for_)
 import Data.Date
@@ -25,11 +28,14 @@ import Data.Time
 import Data.Maybe
 import Data.Maybe.Unsafe (fromJust)
 import Data.Array
-import Math
-import Prelude.Unsafe (unsafeIndex)
+import Data.Array.ST
+import Math hiding (log)
+import Data.Int (toNumber)
+import KeyEvent
+import Data.Array.Unsafe (unsafeIndex)
 
 
-starCount   = 50        :: Number
+starCount   = 50        :: Int
 spinStep    = 0.1       :: Number
 
 type MyBindings =
@@ -80,13 +86,13 @@ type State bindings = {
                 starVertices :: Buffer T.Float32,
                 textureCoords :: Buffer T.Float32,
                 texture :: WebGLTex,
-                lastTime :: Maybe Number,
+                lastTime :: Maybe Int,
 
-                stars   :: [Star],
+                stars   :: Array Star,
                 spin    :: Number,
                 tilt    :: Number,
                 z       :: Number,
-                currentlyPressedKeys :: [Number]
+                currentlyPressedKeys :: Array Int
             }
 
 vertices = [
@@ -122,15 +128,15 @@ type Star =
 -- Star methods
 starDefault :: Number -> Number -> Star
 starDefault startDist rotSpeed =
-    { angle         : 0
+    { angle         : 0.0
     , dist          : startDist
     , rotationSpeed : rotSpeed
-    , r             : 0
-    , g             : 0
-    , b             : 0
-    , twinkleR      : 0
-    , twinkleG      : 0
-    , twinkleB      : 0
+    , r             : 0.0
+    , g             : 0.0
+    , b             : 0.0
+    , twinkleR      : 0.0
+    , twinkleG      : 0.0
+    , twinkleB      : 0.0
     }
 
 starCreate x y =
@@ -147,7 +153,7 @@ starRandomiseColors star = do
         , twinkleB      = colors `unsafeIndex` 5
         }
 
-starAnimate :: forall eff . Number -> Star -> EffWebGL (random :: Random |eff) Star
+starAnimate :: forall eff . Int -> Star -> EffWebGL (random :: RANDOM |eff) Star
 starAnimate elapsedTime star = do
     let
         star' = star
@@ -158,43 +164,39 @@ starAnimate elapsedTime star = do
         then starRandomiseColors star' {dist = star'.dist + 5.0}
         else return star'
   where
-    step = (elapsedTime *  60) / 1000
+    step = (toNumber elapsedTime *  60.0) / 1000.0
 
-starDraw :: forall eff . State MyBindings -> M.Mat4 -> Boolean -> Tuple Star Number -> EffWebGL eff Unit
-starDraw s mvMatrix twinkle (Tuple star mySpin) = do
-    let
-        mv' =
-            M.rotate (degToRad $ negate s.tilt) (V.vec3' [1, 0, 0])
-                $ M.rotate (degToRad $ negate star.angle) (V.vec3' [0, 1, 0])
-                $ M.translate (V.vec3 star.dist 0 0)
-                $ M.rotate (degToRad star.angle) (V.vec3' [0, 1, 0])
-                $ mvMatrix
-        mv'' =
-            M.rotate (degToRad mySpin) (V.vec3' [0, 0, 1]) mv'
+starDraw :: forall h eff . State MyBindings -> Boolean -> M.STMat4 h -> Tuple Star Number -> EffWebGL (st :: ST h |eff) Unit
+starDraw s twinkle mvMatrix (Tuple star mySpin) = do
+    mv <- M.cloneSTMat mvMatrix
+    M.rotateST (degToRad star.angle) (V.vec3' [0.1, 1.0, 0.0]) mv
+    M.translateST (V.vec3 star.dist 0.0 0.0) mv
+    M.rotateST (degToRad $ negate star.angle) (V.vec3' [0.0, 1.0, 0.0]) mv
+    M.rotateST (degToRad $ negate s.tilt) (V.vec3' [1.0, 0.0, 0.0]) mv
 
     when twinkle $ do
         setUniformFloats s.bindings.uColor [star.twinkleR, star.twinkleG, star.twinkleB]
-        drawStar s mv'
+        drawStar s mv
 
+    M.rotateST (degToRad mySpin) (V.vec3' [0.0, 0.0, 1.0]) mv
     setUniformFloats s.bindings.uColor [star.r, star.g, star.b]
-    drawStar s mv''
+    drawStar s mv
 
 
-
-main :: Eff (trace :: Trace, alert :: Alert, now :: Now, random :: Random) Unit
+main :: Eff (console :: CONSOLE, alert :: Alert, now :: Now, random :: RANDOM) Unit
 main = do
   runWebGL
     "glcanvas"
     (\s -> alert s)
       \ context -> do
-        trace "WebGL started"
+        log "WebGL started"
         withShaders
             shaders
             (\s -> alert s)
             \ bindings -> do
               vs <- makeBufferFloat vertices
               textureCoords <- makeBufferFloat texCoo
-              let starParams i = Tuple ((i / starCount) * 5.0) (i / starCount)
+              let starParams i = Tuple ((toNumber i / toNumber starCount) * 5.0) (toNumber i / toNumber starCount)
               ss <- mapM (uncurry starCreate <<< starParams) (0 .. (starCount-1))
               clearColor 0.0 0.0 0.0 1.0
               texture2DFor "star.gif" MIPMAP \texture -> do
@@ -219,17 +221,17 @@ main = do
                   onKeyUp (handleKeyU stRef)
                   tick (stRef :: STRef _ (State MyBindings))
 
-tick :: forall h eff. STRef h (State MyBindings) ->  EffWebGL (st :: ST h, trace :: Trace, now :: Now, random :: Random |eff) Unit
+tick :: forall h eff. STRef h (State MyBindings) ->  EffWebGL (st :: ST h, console :: CONSOLE, now :: Now, random :: RANDOM |eff) Unit
 tick stRef = do
   drawScene stRef
   handleKeys stRef
   animate stRef
   requestAnimationFrame (tick stRef)
 
-unpackMilliseconds :: Milliseconds -> Number
+unpackMilliseconds :: Milliseconds -> Int
 unpackMilliseconds (Milliseconds n) = n
 
-animate ::  forall h eff . STRef h (State MyBindings) -> EffWebGL (st :: ST h, now :: Now, random :: Random |eff) Unit
+animate ::  forall h eff . STRef h (State MyBindings) -> EffWebGL (st :: ST h, now :: Now, random :: RANDOM |eff) Unit
 animate stRef = do
   s <- readSTRef stRef
   timeNow <- liftM1 (unpackMilliseconds <<< toEpochMilliseconds) now
@@ -238,7 +240,7 @@ animate stRef = do
     Just lastt ->
       let
         elapsed = timeNow - lastt
-        spin'   = s.spin + (spinStep * length s.stars)
+        spin'   = s.spin + (spinStep * toNumber (length s.stars))
       in do
         stars' <- mapM (starAnimate elapsed) s.stars
         writeSTRef stRef (s {lastTime = Just timeNow, spin=spin', stars=stars'})
@@ -260,126 +262,90 @@ drawScene stRef = do
   withTexture2D s.texture 0 s.bindings.uSampler 0
 
   let
-    pMatrix = M.makePerspective 45 (canvasWidth / canvasHeight) 0.1 100.0
-    mvMatrix = M.rotate (degToRad s.tilt) (V.vec3' [1, 0, 0]) $ M.translate (V.vec3 0.0 0.0 s.z) $ M.identity
+    pMatrix = M.makePerspective 45.0 (toNumber canvasWidth / toNumber canvasHeight) 0.1 100.0
     ss = zip s.stars (iterateN (+spinStep) (length s.stars) s.spin)
 
   setUniformFloats s.bindings.uPMatrix (M.toArray pMatrix)
-  for_ ss $ starDraw s mvMatrix twinkle
+  mvMatrix <- initialMVMatrix s.tilt s.z
+  for_ ss $ starDraw s twinkle mvMatrix
 
 
-drawStar s mvMatrix = do
-  setUniformFloats s.bindings.uMVMatrix (M.toArray mvMatrix)
+initialMVMatrix :: forall h r. Number -> Number -> Eff (st :: ST h | r) (M.STMat4 h)
+initialMVMatrix tilt zoom = do
+    m <- M.identityST
+    M.translateST (V.vec3' [0.0, 0.0, zoom]) m
+    M.rotateST (degToRad tilt) V.i3 m
+    return m
+
+drawStar s (M.STMat mvMatrix) = do
+  setUniformFloats s.bindings.uMVMatrix (M.unsafeFreeze mvMatrix)
   drawArr TRIANGLE_STRIP s.starVertices s.bindings.aVertexPosition
 
 
 -- | collects results of repeated function application, up to n times
-iterateN :: forall a . (a -> a) -> Number -> a -> [a]                   -- pfff... I miss Haskell's laziness...
+iterateN :: forall a . (a -> a) -> Int -> a -> Array a
 iterateN f = iterate' []
   where
     iterate' res 0 _ = reverse res
     iterate' res n x = iterate' (x:res) (n-1) (f x)
 
 
-foreign import getElementByIdFloat
-"""
-  function getElementByIdFloat(targ_id) {
-      return function () {
-        return parseFloat(document.getElementById(targ_id).value);
-      };
-    }
-""" :: forall eff. String -> (EffWebGL eff Number)
-
-foreign import getElementByIdBool
-"""
-  function getElementByIdBool(targ_id) {
-      return function () {
-        return document.getElementById(targ_id).checked;
-      };
-    }
-""" :: forall eff. String -> (EffWebGL eff Boolean)
-
 -- | Convert from radians to degrees.
 radToDeg :: Number -> Number
-radToDeg x = x/pi*180
+radToDeg x = x/pi*180.0
 
 -- | Convert from degrees to radians.
 degToRad :: Number -> Number
-degToRad x = x/180*pi
+degToRad x = x/180.0*pi
 
 
 -- * Key handling
 
-handleKeys ::  forall h eff . STRef h (State MyBindings) -> EffWebGL (trace :: Trace, st :: ST h |eff) Unit
+-- * Key handling
+
+handleKeys ::  forall h eff . STRef h (State MyBindings) -> EffWebGL (console :: CONSOLE, st :: ST h |eff) Unit
 handleKeys stRef = do
   s <- readSTRef stRef
   if null s.currentlyPressedKeys
     then return unit
     else
-      let z' = if elemIndex 33 s.currentlyPressedKeys /= -1
-                  then s.z - 0.1
-                  else s.z
-          z'' = if elemIndex 34 s.currentlyPressedKeys /= -1
-                  then z' + 0.1
-                  else z'
-          tilt' = if elemIndex 38 s.currentlyPressedKeys /= -1
-                  then s.tilt - 2
-                  else s.tilt
-          tilt'' = if elemIndex 40 s.currentlyPressedKeys /= -1
-                  then tilt' + 2
-                  else tilt'
+      let z' = case elemIndex 33 s.currentlyPressedKeys of
+                  Just _ -> s.z - 0.1
+                  Nothing -> s.z
+          z'' = case elemIndex 34 s.currentlyPressedKeys of
+                  Just _ -> z' + 0.1
+                  Nothing -> z'
+          tilt' = case elemIndex 38 s.currentlyPressedKeys of
+                  Just _ -> s.tilt - 2.0
+                  Nothing -> s.tilt
+          tilt'' = case elemIndex 40 s.currentlyPressedKeys of
+                  Just _ -> tilt' + 2.0
+                  Nothing -> tilt'
       in do
         writeSTRef stRef (s{z=z'',tilt=tilt''})
-        -- trace (show s.currentlyPressedKeys)
+        -- log (show s.currentlyPressedKeys)
         return unit
 
-handleKeyD :: forall h eff. STRef h (State MyBindings) -> Event -> Eff (st :: ST h, trace :: Trace | eff) Unit
+handleKeyD :: forall h eff. STRef h (State MyBindings) -> Event -> Eff (st :: ST h, console :: CONSOLE | eff) Unit
 handleKeyD stRef event = do
-  -- trace "handleKeyDown"
+--  log "handleKeyDown"
   let key = eventGetKeyCode event
   s <- readSTRef stRef
-  let cp = if elemIndex key s.currentlyPressedKeys /= -1
-              then s.currentlyPressedKeys
-              else key : s.currentlyPressedKeys
+  let cp = case elemIndex key s.currentlyPressedKeys of
+                  Just _ ->  s.currentlyPressedKeys
+                  Nothing -> key : s.currentlyPressedKeys
   writeSTRef stRef (s {currentlyPressedKeys = cp})
-  -- trace (show s.currentlyPressedKeys)
+--  log (show s.currentlyPressedKeys)
   return unit
 
-handleKeyU :: forall h eff. STRef h (State MyBindings) -> Event -> Eff (st :: ST h, trace :: Trace | eff) Unit
+handleKeyU :: forall h eff. STRef h (State MyBindings) -> Event -> Eff (st :: ST h, console :: CONSOLE | eff) Unit
 handleKeyU stRef event = do
-  -- trace "handleKeyUp"
+--  log "handleKeyUp"
   let key = eventGetKeyCode event
   s <- readSTRef stRef
-  if elemIndex key s.currentlyPressedKeys == -1
-    then return unit
-    else do
+  case elemIndex key s.currentlyPressedKeys of
+    Nothing ->  return unit
+    Just _ -> do
       writeSTRef stRef (s {currentlyPressedKeys = delete key s.currentlyPressedKeys})
-       -- trace (show s.currentlyPressedKeys)
+      -- log (show s.currentlyPressedKeys)
       return unit
-
-foreign import data Event :: *
-
-foreign import onKeyDown
-"""
-        function onKeyDown(handleKeyDown) {
-          return function() {
-            document.onkeydown = function(event) {handleKeyDown(event)()};
-            };}
-""" ::  forall eff. (Event -> Eff (webgl :: WebGl | eff) Unit)
-    -> Eff (webgl :: WebGl | eff) Unit
-
-foreign import onKeyUp
-"""
-        function onKeyUp(handleKeyUp) {
-          return function() {
-            document.onkeyup = function(event) {handleKeyUp(event)()};
-            };}
-""" ::  forall eff. (Event -> Eff (webgl :: WebGl | eff) Unit)
-    -> Eff (webgl :: WebGl | eff) Unit
-
-foreign import eventGetKeyCode
-"""
-  function eventGetKeyCode (event) {
-      return (event.keyCode);
-      }
-""" :: Event -> Number
