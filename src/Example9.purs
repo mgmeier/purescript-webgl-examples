@@ -263,7 +263,7 @@ animate stRef = do
         elapsed = timeNow - lastt
         spin'   = s.spin + (spinStep * toNumber (length s.stars))
       in do
-        stars' <- mapM (starAnimate elapsed) s.stars
+        stars' <- mapM (starAnimate s.benchCount) s.stars
         writeSTRef stRef (s {lastTime = Just timeNow, spin=spin', stars=stars'})
   return unit
 
