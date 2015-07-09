@@ -89,7 +89,10 @@ type State bindings = {
                 spin    :: Number,
                 tilt    :: Number,
                 z       :: Number,
-                currentlyPressedKeys :: Array Int
+                currentlyPressedKeys :: Array Int,
+
+                benchCount :: Int,
+                benchTime :: Int
             }
 
 vertices = [
@@ -214,7 +217,10 @@ main = do
                               spin  : 0.0,
                               tilt  : 90.0,
                               z     : (-15.0),
-                              currentlyPressedKeys : []
+                              currentlyPressedKeys : [],
+
+                              benchTime : 0,
+                              benchCount : 0
                             } :: State MyBindings
                 runST do
                   stRef <- newSTRef state
@@ -224,9 +230,23 @@ main = do
 
 tick :: forall h eff. STRef h (State MyBindings) ->  EffWebGL (st :: ST h, console :: CONSOLE, now :: Now, random :: RANDOM |eff) Unit
 tick stRef = do
+  timeBefore <- liftM1 (unpackMilliseconds <<< toEpochMilliseconds) now
   drawScene stRef
   handleKeys stRef
   animate stRef
+  timeAfter <- liftM1 (unpackMilliseconds <<< toEpochMilliseconds) now
+  modifySTRef stRef \s -> s {benchTime = s.benchTime + (timeAfter - timeBefore)}
+  state <- readSTRef stRef
+  if state.benchCount < 1000
+    then do
+            modifySTRef stRef (\s -> s {benchCount = s.benchCount + 1})
+            return unit
+    else if state.benchCount == 1000
+        then do
+                log ("Benchmark 1000 cycles time in milliseconds: " ++ show state.benchTime)
+                modifySTRef stRef (\s -> s {benchCount = s.benchCount + 1})
+                return unit
+        else return unit
   requestAnimationFrame (tick stRef)
 
 unpackMilliseconds :: Milliseconds -> Int

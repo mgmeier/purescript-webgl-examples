@@ -22,7 +22,7 @@
     "package.json"
   ],
   "dependencies": {
-    "purescript-webgl" : "/home/jutaro/Develop/purescript-webgl/.git",
+    "purescript-webgl" : "*",
     "purescript-datetime" : "*",
     "purescript-random" : "*",
     "purescript-extensions" : "*",
