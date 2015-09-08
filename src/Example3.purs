@@ -59,7 +59,7 @@ type State = {
                 buf1Colors :: Buffer T.Float32,
                 buf2 :: Buffer T.Float32,
                 buf2Colors :: Buffer T.Float32,
-                lastTime :: Maybe Int,
+                lastTime :: Maybe Number,
                 rTri :: Number,
                 rSquare :: Number
             }
@@ -118,7 +118,7 @@ tick state = do
   return unit
   requestAnimationFrame (tick state')
 
-unpackMilliseconds :: Milliseconds -> Int
+unpackMilliseconds :: Milliseconds -> Number
 unpackMilliseconds (Milliseconds n) = n
 
 animate ::  forall eff. State -> EffWebGL (now :: Now |eff) State
@@ -129,8 +129,8 @@ animate state = do
     Just lastt ->
       let elapsed = timeNow - lastt
       in return state {lastTime = Just timeNow,
-                       rTri = state.rTri + (90.0 * toNumber elapsed) / 1000.0,
-                       rSquare = state.rSquare + (75.0 * toNumber elapsed) / 1000.0}
+                       rTri = state.rTri + (90.0 * elapsed) / 1000.0,
+                       rSquare = state.rSquare + (75.0 * elapsed) / 1000.0}
 
 drawScene :: forall eff. State  -> EffWebGL (now :: Now |eff) Unit
 drawScene s = do

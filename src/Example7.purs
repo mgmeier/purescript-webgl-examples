@@ -217,7 +217,7 @@ type State bindings = {
                 cubeVertexIndices :: Buffer T.Uint16,
                 texture :: WebGLTex,
 
-                lastTime :: Maybe Int,
+                lastTime :: Maybe Number,
                 xRot :: Number,
                 xSpeed :: Number,
                 yRot :: Number,
@@ -276,7 +276,7 @@ tick stRef = do
   animate stRef
   requestAnimationFrame (tick stRef)
 
-unpackMilliseconds :: Milliseconds -> Int
+unpackMilliseconds :: Milliseconds -> Number
 unpackMilliseconds (Milliseconds n) = n
 
 animate ::  forall h eff . STRef h (State MyBindings) -> EffWebGL (st :: ST h, now :: Now |eff) Unit
@@ -288,8 +288,8 @@ animate stRef = do
     Just lastt ->
       let elapsed = timeNow - lastt
       in writeSTRef stRef (s {lastTime = Just timeNow,
-                              xRot = s.xRot + s.xSpeed * toNumber elapsed / 1000.0,
-                              yRot = s.yRot + s.ySpeed * toNumber elapsed / 1000.0
+                              xRot = s.xRot + s.xSpeed * elapsed / 1000.0,
+                              yRot = s.yRot + s.ySpeed * elapsed / 1000.0
                               })
   return unit
 

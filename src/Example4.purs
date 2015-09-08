@@ -60,7 +60,7 @@ type State = {
                 cubeVertices :: Buffer T.Float32,
                 cubeColors :: Buffer T.Float32,
                 cubeVertexIndices :: Buffer T.Uint16,
-                lastTime :: Maybe Int,
+                lastTime :: Maybe Number,
                 rPyramid :: Number,
                 rCube :: Number
               }
@@ -192,7 +192,7 @@ tick state = do
   state' <- animate state
   requestAnimationFrame (tick state')
 
-unpackMilliseconds :: Milliseconds -> Int
+unpackMilliseconds :: Milliseconds -> Number
 unpackMilliseconds (Milliseconds n) = n
 
 animate ::  forall eff. State -> EffWebGL (now :: Now |eff) State
@@ -203,8 +203,8 @@ animate state = do
     Just lastt ->
       let elapsed = timeNow - lastt
       in return state {lastTime = Just timeNow,
-                       rPyramid = state.rPyramid + (90.0 * toNumber elapsed) / 1000.0,
-                       rCube = state.rCube + (75.0 * toNumber elapsed) / 1000.0}
+                       rPyramid = state.rPyramid + (90.0 * elapsed) / 1000.0,
+                       rCube = state.rCube + (75.0 * elapsed) / 1000.0}
 
 drawScene :: forall eff. State -> EffWebGL (now :: Now |eff) Unit
 drawScene s = do

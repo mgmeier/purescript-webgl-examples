@@ -83,7 +83,7 @@ type State bindings = {
                 starVertices :: Buffer T.Float32,
                 textureCoords :: Buffer T.Float32,
                 texture :: WebGLTex,
-                lastTime :: Maybe Int,
+                lastTime :: Maybe Number,
 
                 stars   :: Array Star,
                 spin    :: Number,
@@ -92,7 +92,7 @@ type State bindings = {
                 currentlyPressedKeys :: Array Int,
 
                 benchCount :: Int,
-                benchTime :: Int
+                benchTime :: Number
             }
 
 vertices = [
@@ -219,7 +219,7 @@ main = do
                               z     : (-15.0),
                               currentlyPressedKeys : [],
 
-                              benchTime : 0,
+                              benchTime : 0.0,
                               benchCount : 0
                             } :: State MyBindings
                 runST do
@@ -249,7 +249,7 @@ tick stRef = do
         else return unit
   requestAnimationFrame (tick stRef)
 
-unpackMilliseconds :: Milliseconds -> Int
+unpackMilliseconds :: Milliseconds -> Number
 unpackMilliseconds (Milliseconds n) = n
 
 animate ::  forall h eff . STRef h (State MyBindings) -> EffWebGL (st :: ST h, now :: Now, random :: RANDOM |eff) Unit
