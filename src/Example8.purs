@@ -269,7 +269,7 @@ main = do
               stRef <- newSTRef state
               onKeyDown (handleKeyD stRef)
               onKeyUp (handleKeyU stRef)
-              tick (stRef :: STRef _ (State MyBindings))
+              tick stRef
 
 tick :: forall h eff. STRef h (State MyBindings) ->  EffWebGL (st :: ST h, console :: CONSOLE, now :: Now |eff) Unit
 tick stRef = do
