@@ -14,7 +14,8 @@ import qualified Data.Vector3 as V
 import qualified Data.ArrayBuffer.Types as T
 import qualified Data.TypedArray as T
 import Control.Monad.Eff.Alert
-import Extensions
+import Extensions hiding (alert)
+
 
 import Control.Monad.Eff
 import Control.Monad.Eff.Random
