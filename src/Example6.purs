@@ -1,9 +1,7 @@
 module Example6 where
 
 import Prelude
-import Control.Monad.Eff.WebGL
-import Graphics.WebGL
-import Graphics.WebGLTexture
+import Graphics.WebGLAll
 import qualified Data.Matrix4 as M
 import qualified Data.Matrix as M
 import qualified Data.Vector3 as V3

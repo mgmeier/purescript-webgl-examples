@@ -1,8 +1,7 @@
 module Example1 where
 
 import Prelude
-import Control.Monad.Eff.WebGL
-import Graphics.WebGL
+import Graphics.WebGLAll
 
 import Data.TypeNat
 import qualified Data.Matrix4 as M

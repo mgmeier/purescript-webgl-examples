@@ -1,10 +1,7 @@
 module Example8 where
 
 import Prelude
-import Control.Monad.Eff.WebGL
-import Graphics.WebGL
-import Graphics.WebGLRaw
-import Graphics.WebGLTexture
+import Graphics.WebGLAll
 import qualified Data.Matrix as M
 import qualified Data.Matrix4 as M
 import Data.Matrix3 (normalFromMat4)
