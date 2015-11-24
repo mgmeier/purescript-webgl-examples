@@ -9,7 +9,6 @@ import Control.Monad.Eff.Alert
 
 import Control.Monad.Eff
 import Control.Monad.Eff.Console
-import Data.Tuple
 import Data.Int (toNumber)
 
 

@@ -11,13 +11,10 @@ import qualified Data.ArrayBuffer.Types as T
 import qualified Data.TypedArray as T
 
 import Control.Monad.Eff
-import Control.Monad
 import Control.Monad.Eff.Console
-import Data.Tuple
 import Data.Date
 import Data.Time
 import Data.Maybe
-import Data.Array
 import Math hiding (log)
 import Data.Int (toNumber)
 

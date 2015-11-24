@@ -7,12 +7,9 @@ import qualified Data.Matrix as M
 import qualified Data.Vector3 as V3
 import Control.Monad.Eff.Alert
 import qualified Data.ArrayBuffer.Types as T
-import qualified Data.TypedArray as T
 
 import Control.Monad.Eff
-import Control.Monad
 import Control.Monad.Eff.Console
-import Data.Tuple
 import Data.Date
 import Data.Time
 import Data.Maybe
@@ -63,7 +60,7 @@ type State = {
                 rSquare :: Number
             }
 
-main :: forall eff. Eff (console :: CONSOLE, alert :: Alert, now :: Now) Unit
+main :: Eff (console :: CONSOLE, alert :: Alert, now :: Now) Unit
 main =
   runWebGL
     "glcanvas"

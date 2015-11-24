@@ -6,10 +6,8 @@ import qualified Data.Matrix as M
 import qualified Data.Matrix4 as M
 import qualified Data.ST.Matrix as M
 import qualified Data.ST.Matrix4 as M
-import qualified Data.Vector as V
 import qualified Data.Vector3 as V
 import qualified Data.ArrayBuffer.Types as T
-import qualified Data.TypedArray as T
 import Control.Monad.Eff.Alert
 import Extensions hiding (alert)
 
@@ -24,17 +22,16 @@ import Data.Foldable (for_)
 import Data.Date
 import Data.Time
 import Data.Maybe
-import Data.Maybe.Unsafe (fromJust)
 import Data.Array
-import Data.Array.ST
 import Math hiding (log)
 import Data.Int (toNumber)
 import KeyEvent
 import Data.Array.Unsafe (unsafeIndex)
 
-
-starCount   = 50        :: Int
-spinStep    = 0.1       :: Number
+starCount :: Int
+starCount   = 50
+spinStep :: Number
+spinStep    = 0.1
 
 type MyBindings =
               ( aVertexPosition :: Attribute Vec3
@@ -96,6 +93,7 @@ type State bindings = {
                 benchTime :: Number
             }
 
+vertices :: Array Number
 vertices = [
         -1.0, -1.0,  0.0,
          1.0, -1.0,  0.0,
@@ -103,7 +101,7 @@ vertices = [
          1.0,  1.0,  0.0
         ]
 
-
+texCoo :: Array Number
 texCoo = [
         0.0, 0.0,
         1.0, 0.0,
@@ -140,9 +138,11 @@ starDefault startDist rotSpeed =
     , twinkleB      : 0.0
     }
 
+starCreate :: forall eff . Number -> Number -> Eff (random :: RANDOM| eff) Star
 starCreate x y =
     starRandomiseColors (starDefault x y)
 
+starRandomiseColors :: forall eff . Star -> Eff (random :: RANDOM| eff) Star
 starRandomiseColors star = do
     colors <- replicateM 6 random
     return star
@@ -295,6 +295,7 @@ initialMVMatrix tilt zoom = do
     M.rotateST (degToRad tilt) V.i3 m
     return m
 
+drawStar :: forall eff h. State MyBindings -> M.STMat4 h -> EffWebGL eff Unit
 drawStar s (M.STMat mvMatrix) = do
   setUniformFloats s.bindings.uMVMatrix (M.unsafeFreeze mvMatrix)
   drawArr TRIANGLE_STRIP s.starVertices s.bindings.aVertexPosition

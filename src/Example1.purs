@@ -3,7 +3,6 @@ module Example1 where
 import Prelude
 import Graphics.WebGLAll
 
-import Data.TypeNat
 import qualified Data.Matrix4 as M
 import qualified Data.Matrix as M
 import qualified Data.Vector3 as V
@@ -12,7 +11,6 @@ import Control.Monad.Eff.Alert
 
 import Control.Monad.Eff
 import Control.Monad.Eff.Console
-import Data.Tuple
 import Data.Int (toNumber)
 
 

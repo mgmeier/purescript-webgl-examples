@@ -10,16 +10,13 @@ import qualified Data.ArrayBuffer.Types as T
 import qualified Data.TypedArray as T
 
 import Control.Monad.Eff
-import Control.Monad
 import Control.Monad.ST
 import Control.Monad.Eff.Console
-import Data.Tuple
 import Data.Date
 import Data.Time
 import Data.Maybe
 import Data.Maybe.Unsafe (fromJust)
 import Data.Array
-import Data.Array.Unsafe (unsafeIndex)
 import Math hiding (log)
 import Data.Int (toNumber)
 import KeyEvent
@@ -56,6 +53,7 @@ shaders = Shaders
       }
   """
 
+cubeV :: Array Number
 cubeV = [
         -- Front face
         -1.0, -1.0,  1.0,
@@ -94,6 +92,7 @@ cubeV = [
         -1.0,  1.0, -1.0
       ]
 
+texCoo :: Array Number
 texCoo = [
           -- Front face
           0.0, 0.0,
@@ -132,6 +131,7 @@ texCoo = [
           0.0, 1.0
         ]
 
+cvi :: Array Int
 cvi = [
         0, 1, 2,      0, 2, 3,    -- Front face
         4, 5, 6,      4, 6, 7,    -- Back face

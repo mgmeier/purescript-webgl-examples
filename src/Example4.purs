@@ -10,7 +10,6 @@ import qualified Data.ArrayBuffer.Types as T
 import qualified Data.TypedArray as T
 
 import Control.Monad.Eff
-import Control.Monad
 import Control.Monad.Eff.Console
 import Data.Date
 import Data.Time
