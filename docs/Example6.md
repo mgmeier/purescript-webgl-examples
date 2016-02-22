@@ -6,6 +6,24 @@
 shaders :: Shaders { aVertexPosition :: Attribute Vec3, aTextureCoord :: Attribute Vec2, uPMatrix :: Uniform Mat4, uMVMatrix :: Uniform Mat4, uSampler :: Uniform Sampler2D }
 ```
 
+#### `cubeV`
+
+``` purescript
+cubeV :: Array Number
+```
+
+#### `texCoo`
+
+``` purescript
+texCoo :: Array Number
+```
+
+#### `cvi`
+
+``` purescript
+cvi :: Array Int
+```
+
 #### `State`
 
 ``` purescript

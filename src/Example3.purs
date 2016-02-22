@@ -1,19 +1,21 @@
 module Example3 where
 
-import Prelude
-import Graphics.WebGLAll
-import qualified Data.Matrix4 as M
-import qualified Data.Matrix as M
-import qualified Data.Vector3 as V3
-import Control.Monad.Eff.Alert
-import qualified Data.ArrayBuffer.Types as T
-
-import Control.Monad.Eff
-import Control.Monad.Eff.Console
-import Data.Date
-import Data.Time
-import Data.Maybe
-import Math hiding (log)
+import Prelude (Unit, (*), (/), bind, negate, ($), (+), return, (-), (<<<), liftM1, unit)
+import Graphics.WebGLAll (EffWebGL, Buffer, Mat4, Uniform, Vec3, Attribute, WebGLProg, WebGLContext, Capacity(DEPTH_TEST),
+                        Mask(DEPTH_BUFFER_BIT, COLOR_BUFFER_BIT), Mode(TRIANGLE_STRIP, TRIANGLES), Shaders(Shaders),
+                        drawArr, bindBufAndSetVertexAttr, setUniformFloats, clear, viewport, getCanvasHeight, getCanvasWidth,
+                        requestAnimationFrame, enable, clearColor, makeBufferFloat, withShaders, runWebGL)
+import Data.Matrix4 (identity, translate, rotate, makePerspective) as M
+import Data.Matrix (toArray) as M
+import Data.Vector3 as V3
+import Control.Monad.Eff.Alert (Alert, alert)
+import Data.ArrayBuffer.Types as T
+import Control.Monad.Eff (Eff)
+import Control.Monad.Eff.Console (CONSOLE, log)
+import Data.Date (Now, now, toEpochMilliseconds)
+import Data.Time (Milliseconds(Milliseconds))
+import Data.Maybe (Maybe(Just, Nothing))
+import Math (pi)
 import Data.Int (toNumber)
 
 shaders :: Shaders {aVertexPosition :: Attribute Vec3, aVertexColor :: Attribute Vec3,
@@ -146,10 +148,10 @@ drawScene s = do
       bindBufAndSetVertexAttr s.buf1Colors s.aVertexColor
       drawArr TRIANGLES s.buf1 s.aVertexPosition
 
-      let mvMatrix =
+      let mvMatrix' =
           M.rotate (degToRad s.rSquare) (V3.vec3' [1.0, 0.0, 0.0])
             $ M.translate  (V3.vec3 (1.5) 0.0 (-7.0)) M.identity
-      setUniformFloats s.uMVMatrix (M.toArray mvMatrix)
+      setUniformFloats s.uMVMatrix (M.toArray mvMatrix')
 
       bindBufAndSetVertexAttr s.buf2Colors s.aVertexColor
       drawArr TRIANGLE_STRIP s.buf2 s.aVertexPosition

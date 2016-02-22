@@ -1,16 +1,13 @@
 module Example1 where
 
-import Prelude
-import Graphics.WebGLAll
-
-import qualified Data.Matrix4 as M
-import qualified Data.Matrix as M
-import qualified Data.Vector3 as V
-
-import Control.Monad.Eff.Alert
-
-import Control.Monad.Eff
-import Control.Monad.Eff.Console
+import Prelude (Unit, bind, negate, (/))
+import Graphics.WebGLAll (Mat4, Uniform, Vec3, Attribute, Capacity(DEPTH_TEST), Mask(DEPTH_BUFFER_BIT, COLOR_BUFFER_BIT), Mode(TRIANGLE_STRIP, TRIANGLES), Shaders(Shaders), drawArr, makeBufferFloat, setUniformFloats, clear, viewport, getCanvasHeight, getCanvasWidth, enable, clearColor, withShaders, runWebGL)
+import Data.Matrix4 (translate, identity, makePerspective) as M
+import Data.Matrix (toArray) as M
+import Data.Vector3 as V
+import Control.Monad.Eff (Eff)
+import Control.Monad.Eff.Alert (Alert, alert)
+import Control.Monad.Eff.Console (CONSOLE, log)
 import Data.Int (toNumber)
 
 

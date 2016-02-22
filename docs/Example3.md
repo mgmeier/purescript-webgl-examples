@@ -15,7 +15,7 @@ type State = { context :: WebGLContext, shaderProgram :: WebGLProg, aVertexPosit
 #### `main`
 
 ``` purescript
-main :: forall eff. Eff (console :: CONSOLE, alert :: Alert, now :: Now) Unit
+main :: Eff (console :: CONSOLE, alert :: Alert, now :: Now) Unit
 ```
 
 #### `tick`

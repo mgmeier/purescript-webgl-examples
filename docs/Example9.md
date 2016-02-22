@@ -1,5 +1,17 @@
 ## Module Example9
 
+#### `starCount`
+
+``` purescript
+starCount :: Int
+```
+
+#### `spinStep`
+
+``` purescript
+spinStep :: Number
+```
+
 #### `MyBindings`
 
 ``` purescript
@@ -18,6 +30,18 @@ shaders :: Shaders {  | MyBindings }
 type State bindings = { context :: WebGLContext, bindings :: { webGLProgram :: WebGLProg | bindings }, starVertices :: Buffer Float32, textureCoords :: Buffer Float32, texture :: WebGLTex, lastTime :: Maybe Number, stars :: Array Star, spin :: Number, tilt :: Number, z :: Number, currentlyPressedKeys :: Array Int, benchCount :: Int, benchTime :: Number }
 ```
 
+#### `vertices`
+
+``` purescript
+vertices :: Array Number
+```
+
+#### `texCoo`
+
+``` purescript
+texCoo :: Array Number
+```
+
 #### `Star`
 
 ``` purescript
@@ -30,6 +54,18 @@ Star attributes
 
 ``` purescript
 starDefault :: Number -> Number -> Star
+```
+
+#### `starCreate`
+
+``` purescript
+starCreate :: forall eff. Number -> Number -> Eff (random :: RANDOM | eff) Star
+```
+
+#### `starRANDOMiseColors`
+
+``` purescript
+starRANDOMiseColors :: forall eff. Star -> Eff (random :: RANDOM | eff) Star
 ```
 
 #### `starAnimate`
@@ -72,6 +108,12 @@ animate :: forall h eff. STRef h (State MyBindings) -> EffWebGL (st :: ST h, now
 
 ``` purescript
 drawScene :: forall h eff. STRef h (State MyBindings) -> EffWebGL (st :: ST h | eff) Unit
+```
+
+#### `drawStar`
+
+``` purescript
+drawStar :: forall eff. State MyBindings -> Mat4 -> EffWebGL eff Unit
 ```
 
 #### `iterateN`

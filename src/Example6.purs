@@ -1,26 +1,24 @@
 module Example6 where
 
-import Prelude
-import Graphics.WebGLAll
-import qualified Data.Matrix4 as M
-import qualified Data.Matrix as M
-import qualified Data.Vector3 as V3
-import Control.Monad.Eff.Alert
-import qualified Data.ArrayBuffer.Types as T
-import qualified Data.TypedArray as T
-
-import Control.Monad.Eff
-import Control.Monad.ST
-import Control.Monad.Eff.Console
-import Data.Date
-import Data.Time
-import Data.Maybe
+import Prelude (Unit, unit, return, bind, show, (++), (+), (==), (-), (*), (/), ($), (<<<), liftM1, negate)
+import Graphics.WebGLAll (EffWebGL, WebGLTex, Buffer, Sampler2D, Uniform, Mat4, Vec2, Attribute, Vec3, WebGLProg, WebGLContext, BufferTarget(ELEMENT_ARRAY_BUFFER), Capacity(DEPTH_TEST), Mask(DEPTH_BUFFER_BIT, COLOR_BUFFER_BIT), Mode(TRIANGLES), Shaders(Shaders), TexFilterSpec(MIPMAP, LINEAR, NEAREST), drawElements, bindBuf, withTexture2D, bindBufAndSetVertexAttr, setUniformFloats, clear, viewport, getCanvasHeight, getCanvasWidth, requestAnimationFrame, texture2DFor, enable, clearColor, makeBuffer, makeBufferFloat, withShaders, runWebGL)
+import Data.Matrix4 (identity, translate, rotate, makePerspective) as M
+import Data.Matrix (toArray) as M
+import Data.Vector3 as V3
+import Control.Monad.Eff.Alert (Alert, alert)
+import Data.ArrayBuffer.Types (Uint16, Float32) as T
+import Data.TypedArray (asUint16Array) as T
+import Control.Monad.Eff (Eff)
+import Control.Monad.ST (ST, STRef, writeSTRef, readSTRef, newSTRef, runST)
+import Control.Monad.Eff.Console (CONSOLE, log)
+import Data.Date (Now, now, toEpochMilliseconds)
+import Data.Time (Milliseconds(Milliseconds))
+import Data.Maybe (Maybe(Just, Nothing))
 import Data.Maybe.Unsafe (fromJust)
-import Data.Array
-import Math hiding (log)
+import Data.Array (delete, elemIndex, (:), null, (!!))
+import Math (pi)
 import Data.Int (toNumber)
-import KeyEvent
-
+import KeyEvent (Event, eventGetKeyCode, onKeyUp, onKeyDown)
 
 shaders :: Shaders {aVertexPosition :: Attribute Vec3, aTextureCoord :: Attribute Vec2,
                       uPMatrix :: Uniform Mat4, uMVMatrix:: Uniform Mat4, uSampler :: Uniform Sampler2D}

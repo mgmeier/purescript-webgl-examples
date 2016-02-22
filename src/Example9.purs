@@ -1,28 +1,30 @@
 module Example9 where
 
-import Prelude
-import Graphics.WebGLAll
-import qualified Data.Matrix as M
-import qualified Data.Matrix4 as M
-import qualified Data.Vector3 as V
-import qualified Data.ArrayBuffer.Types as T
-import Control.Monad.Eff.Alert
-import Extensions hiding (alert)
-
-import Control.Monad.Eff
-import Control.Monad.Eff.Random
-import Control.Monad
-import Control.Monad.ST
-import Control.Monad.Eff.Console
-import Data.Tuple
+import Prelude (Unit, unit, return, bind, (+), (-), (*), (/), ($), (<<<), liftM1, show, (++), (==), (<), negate)
+import Graphics.WebGLAll (EffWebGL, WebGLTex, Buffer, WebGLProg, WebGLContext, Vec3, Uniform, Sampler2D, Mat4, Vec2, Attribute,
+    BlendingFactor(ONE, SRC_ALPHA), Capacity(BLEND), Mask(DEPTH_BUFFER_BIT, COLOR_BUFFER_BIT), Mode(TRIANGLE_STRIP), Shaders(Shaders),
+    TexFilterSpec(MIPMAP), drawArr, setUniformFloats, withTexture2D, bindBufAndSetVertexAttr, enable, blendFunc, clear, viewport,
+    getCanvasHeight, getCanvasWidth, requestAnimationFrame, texture2DFor, clearColor, makeBufferFloat, withShaders, runWebGL)
+import Data.Matrix (toArray) as M
+import Data.Matrix4 (Mat4, identity, translate, rotate, makePerspective) as M
+import Data.Vector3 as V
+import Data.ArrayBuffer.Types as T
+import Control.Monad.Eff.Alert (Alert, alert)
+import Extensions (mapM)
+import Control.Monad.Eff (Eff)
+import Control.Monad.Eff.Random (RANDOM, random)
+import Control.Monad (when)
+import Control.Monad.ST (ST, STRef, writeSTRef, readSTRef, modifySTRef, newSTRef, runST)
+import Control.Monad.Eff.Console (CONSOLE, log)
+import Data.Tuple (Tuple(Tuple), uncurry)
 import Data.Foldable (for_)
-import Data.Date
-import Data.Time
-import Data.Maybe
-import Data.Array
-import Math hiding (log)
+import Data.Date (Now, now, toEpochMilliseconds)
+import Data.Time (Milliseconds(Milliseconds))
+import Data.Maybe (Maybe(Just, Nothing))
+import Data.Array (delete, elemIndex, (:), null, reverse, length, zip, (..), replicateM)
+import Math (pi)
 import Data.Int (toNumber)
-import KeyEvent
+import KeyEvent (Event, eventGetKeyCode, getElementByIdBool, onKeyUp, onKeyDown)
 import Data.Array.Unsafe (unsafeIndex)
 
 starCount :: Int

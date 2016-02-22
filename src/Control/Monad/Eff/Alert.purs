@@ -1,7 +1,7 @@
 module Control.Monad.Eff.Alert where
 
-import Prelude
-import Control.Monad.Eff
+import Prelude (Unit)
+import Control.Monad.Eff (Eff)
 
 foreign import data Alert :: !
 

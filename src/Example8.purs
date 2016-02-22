@@ -1,27 +1,26 @@
 module Example8 where
 
-import Prelude
-import Graphics.WebGLAll
-import qualified Data.Matrix as M
-import qualified Data.Matrix4 as M
+import Prelude (Unit, unit, return, bind, (+), (-), (*), (/), ($), negate, (<<<), liftM1)
+import Graphics.WebGLAll (EffWebGL, WebGLTex, Buffer, WebGLProg, WebGLContext, Float, Uniform, Vec3, Bool, Sampler2D, Mat4, Vec2, Attribute, BlendingFactor(ONE, SRC_ALPHA), BufferTarget(ELEMENT_ARRAY_BUFFER), Capacity(DEPTH_TEST, BLEND), Mask(DEPTH_BUFFER_BIT, COLOR_BUFFER_BIT), Mode(TRIANGLES), Shaders(Shaders), TexFilterSpec(MIPMAP), setUniformFloats, setUniformBoolean, enable, disable, blendFunc, drawElements, bindBuf, withTexture2D, bindBufAndSetVertexAttr, clear, viewport, getCanvasHeight, getCanvasWidth, requestAnimationFrame, texture2DFor, clearColor, makeBuffer, makeBufferFloat, withShaders, runWebGL)
+import Data.Matrix (toArray) as M
+import Data.Matrix4 (identity, translate, rotate, makePerspective) as M
 import Data.Matrix3 (normalFromMat4)
-import qualified Data.Vector as V
-import qualified Data.Vector3 as V
-import qualified Data.ArrayBuffer.Types as T
-import qualified Data.TypedArray as T
-import Control.Monad.Eff.Alert
-
-import Control.Monad.Eff
-import Control.Monad.ST
-import Control.Monad.Eff.Console
-import Data.Date
-import Data.Time
-import Data.Maybe
+import Data.Vector (toArray, normalize, scale) as V
+import Data.Vector3 (vec3, vec3') as V
+import Data.ArrayBuffer.Types (Uint16, Float32) as T
+import Data.TypedArray (asUint16Array) as T
+import Control.Monad.Eff.Alert (Alert, alert)
+import Control.Monad.Eff (Eff)
+import Control.Monad.ST (ST, STRef, writeSTRef, readSTRef, newSTRef, runST)
+import Control.Monad.Eff.Console (CONSOLE, log)
+import Data.Date (Now, now, toEpochMilliseconds)
+import Data.Time (Milliseconds(Milliseconds))
+import Data.Maybe (Maybe(Just, Nothing))
 import Data.Maybe.Unsafe (fromJust)
-import Data.Array
-import Math hiding (log)
+import Data.Array (delete, elemIndex, (:), null)
+import Math (pi)
 import Data.Int (toNumber)
-import KeyEvent
+import KeyEvent (Event, eventGetKeyCode, getElementByIdFloat, getElementByIdBool, onKeyUp, onKeyDown)
 
 type MyBindings =
               (aVertexPosition :: Attribute Vec3, aVertexNormal :: Attribute Vec3,aTextureCoord :: Attribute Vec2,

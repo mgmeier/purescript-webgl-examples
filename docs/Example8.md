@@ -12,6 +12,30 @@ type MyBindings = (aVertexPosition :: Attribute Vec3, aVertexNormal :: Attribute
 shaders :: Shaders {  | MyBindings }
 ```
 
+#### `cubeV`
+
+``` purescript
+cubeV :: Array Number
+```
+
+#### `vertexNormals`
+
+``` purescript
+vertexNormals :: Array Number
+```
+
+#### `texCoo`
+
+``` purescript
+texCoo :: Array Number
+```
+
+#### `cvi`
+
+``` purescript
+cvi :: Array Int
+```
+
 #### `State`
 
 ``` purescript
