@@ -21,7 +21,7 @@ type MyBindings = (aVertexPosition :: Attribute Vec3, aTextureCoord :: Attribute
 #### `shaders`
 
 ``` purescript
-shaders :: Shaders {  | MyBindings }
+shaders :: Shaders ({  | MyBindings })
 ```
 
 #### `State`
@@ -83,13 +83,13 @@ starDraw :: forall eff. State MyBindings -> Mat4 -> Boolean -> Tuple Star Number
 #### `main`
 
 ``` purescript
-main :: Eff (console :: CONSOLE, alert :: Alert, now :: Now, random :: RANDOM) Unit
+main :: Eff (console :: CONSOLE, alert :: Alert, now :: NOW, random :: RANDOM) Unit
 ```
 
 #### `tick`
 
 ``` purescript
-tick :: forall h eff. STRef h (State MyBindings) -> EffWebGL (st :: ST h, console :: CONSOLE, now :: Now, random :: RANDOM | eff) Unit
+tick :: forall h eff. STRef h (State MyBindings) -> EffWebGL (st :: ST h, console :: CONSOLE, now :: NOW, random :: RANDOM | eff) Unit
 ```
 
 #### `unpackMilliseconds`
@@ -101,7 +101,7 @@ unpackMilliseconds :: Milliseconds -> Number
 #### `animate`
 
 ``` purescript
-animate :: forall h eff. STRef h (State MyBindings) -> EffWebGL (st :: ST h, now :: Now, random :: RANDOM | eff) Unit
+animate :: forall h eff. STRef h (State MyBindings) -> EffWebGL (st :: ST h, now :: NOW, random :: RANDOM | eff) Unit
 ```
 
 #### `drawScene`

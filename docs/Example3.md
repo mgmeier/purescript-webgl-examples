@@ -15,13 +15,13 @@ type State = { context :: WebGLContext, shaderProgram :: WebGLProg, aVertexPosit
 #### `main`
 
 ``` purescript
-main :: Eff (console :: CONSOLE, alert :: Alert, now :: Now) Unit
+main :: Eff (console :: CONSOLE, alert :: Alert, now :: NOW) Unit
 ```
 
 #### `tick`
 
 ``` purescript
-tick :: forall eff. State -> EffWebGL (now :: Now | eff) Unit
+tick :: forall eff. State -> EffWebGL (now :: NOW | eff) Unit
 ```
 
 #### `unpackMilliseconds`
@@ -33,13 +33,13 @@ unpackMilliseconds :: Milliseconds -> Number
 #### `animate`
 
 ``` purescript
-animate :: forall eff. State -> EffWebGL (now :: Now | eff) State
+animate :: forall eff. State -> EffWebGL (now :: NOW | eff) State
 ```
 
 #### `drawScene`
 
 ``` purescript
-drawScene :: forall eff. State -> EffWebGL (now :: Now | eff) Unit
+drawScene :: forall eff. State -> EffWebGL (now :: NOW | eff) Unit
 ```
 
 #### `radToDeg`

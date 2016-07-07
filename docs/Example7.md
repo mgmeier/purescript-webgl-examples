@@ -9,7 +9,7 @@ type MyBindings = (aVertexPosition :: Attribute Vec3, aVertexNormal :: Attribute
 #### `shaders`
 
 ``` purescript
-shaders :: Shaders {  | MyBindings }
+shaders :: Shaders ({  | MyBindings })
 ```
 
 #### `cubeV`
@@ -45,13 +45,13 @@ type State bindings = { context :: WebGLContext, bindings :: { webGLProgram :: W
 #### `main`
 
 ``` purescript
-main :: Eff (console :: CONSOLE, alert :: Alert, now :: Now) Unit
+main :: Eff (console :: CONSOLE, alert :: Alert, now :: NOW) Unit
 ```
 
 #### `tick`
 
 ``` purescript
-tick :: forall h eff. STRef h (State MyBindings) -> EffWebGL (st :: ST h, console :: CONSOLE, now :: Now | eff) Unit
+tick :: forall h eff. STRef h (State MyBindings) -> EffWebGL (st :: ST h, console :: CONSOLE, now :: NOW | eff) Unit
 ```
 
 #### `unpackMilliseconds`
@@ -63,7 +63,7 @@ unpackMilliseconds :: Milliseconds -> Number
 #### `animate`
 
 ``` purescript
-animate :: forall h eff. STRef h (State MyBindings) -> EffWebGL (st :: ST h, now :: Now | eff) Unit
+animate :: forall h eff. STRef h (State MyBindings) -> EffWebGL (st :: ST h, now :: NOW | eff) Unit
 ```
 
 #### `drawScene`
@@ -75,7 +75,7 @@ drawScene :: forall h eff. STRef h (State MyBindings) -> EffWebGL (st :: ST h | 
 #### `setLightning`
 
 ``` purescript
-setLightning :: forall eff. State MyBindings -> EffWebGL eff Unit
+setLightning :: forall eff. (State MyBindings) -> EffWebGL eff Unit
 ```
 
 #### `radToDeg`

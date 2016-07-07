@@ -27,13 +27,13 @@ eventGetKeyCode :: Event -> Int
 #### `getElementByIdFloat`
 
 ``` purescript
-getElementByIdFloat :: forall eff. String -> EffWebGL eff Number
+getElementByIdFloat :: forall eff. String -> (EffWebGL eff Number)
 ```
 
 #### `getElementByIdBool`
 
 ``` purescript
-getElementByIdBool :: forall eff. String -> EffWebGL eff Boolean
+getElementByIdBool :: forall eff. String -> (EffWebGL eff Boolean)
 ```
 
 
