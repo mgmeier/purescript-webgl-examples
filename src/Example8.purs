@@ -1,7 +1,24 @@
 module Example8 where
 
-import Prelude (Unit, unit, return, bind, (+), (-), (*), (/), ($), negate, (<<<), liftM1)
-import Graphics.WebGLAll (EffWebGL, WebGLTex, Buffer, WebGLProg, WebGLContext, Float, Uniform, Vec3, Bool, Sampler2D, Mat4, Vec2, Attribute, BlendingFactor(ONE, SRC_ALPHA), BufferTarget(ELEMENT_ARRAY_BUFFER), Capacity(DEPTH_TEST, BLEND), Mask(DEPTH_BUFFER_BIT, COLOR_BUFFER_BIT), Mode(TRIANGLES), Shaders(Shaders), TexFilterSpec(MIPMAP), setUniformFloats, setUniformBoolean, enable, disable, blendFunc, drawElements, bindBuf, withTexture2D, bindBufAndSetVertexAttr, clear, viewport, getCanvasHeight, getCanvasWidth, requestAnimationFrame, texture2DFor, clearColor, makeBuffer, makeBufferFloat, withShaders, runWebGL)
+import Prelude
+import Control.Monad.Eff.Alert (Alert, alert)
+import Control.Monad.Eff (Eff)
+import Control.Monad.ST (ST, STRef, writeSTRef, readSTRef, newSTRef, runST)
+import Control.Monad.Eff.Console (CONSOLE, log)
+import Control.Monad.Eff.Now (NOW, now)
+import Data.DateTime.Instant (unInstant)
+import Data.Time.Duration (Milliseconds(Milliseconds))
+import Data.Maybe (Maybe(Just, Nothing), fromJust)
+import Data.Array (delete, elemIndex, (:), null)
+import Math (pi)
+import Data.Int (toNumber)
+import Partial.Unsafe (unsafePartial)
+
+import Graphics.WebGLAll (EffWebGL, WebGLTex, Buffer, WebGLProg, WebGLContext, Float, Uniform, Vec3, Bool, Sampler2D, Mat4, Vec2,
+        Attribute, BlendingFactor(ONE, SRC_ALPHA), BufferTarget(ELEMENT_ARRAY_BUFFER), Capacity(DEPTH_TEST, BLEND), Mask(DEPTH_BUFFER_BIT, COLOR_BUFFER_BIT),
+        Mode(TRIANGLES), Shaders(Shaders), TexFilterSpec(MIPMAP), setUniformFloats, setUniformBoolean, enable, disable, blendFunc, drawElements,
+        bindBuf, withTexture2D, bindBufAndSetVertexAttr, clear, viewport, getCanvasHeight, getCanvasWidth, requestAnimationFrame, texture2DFor,
+        clearColor, makeBuffer, makeBufferFloat, withShaders, runWebGL)
 import Data.Matrix (toArray) as M
 import Data.Matrix4 (identity, translate, rotate, makePerspective) as M
 import Data.Matrix3 (normalFromMat4)
@@ -9,17 +26,6 @@ import Data.Vector (toArray, normalize, scale) as V
 import Data.Vector3 (vec3, vec3') as V
 import Data.ArrayBuffer.Types (Uint16, Float32) as T
 import Data.TypedArray (asUint16Array) as T
-import Control.Monad.Eff.Alert (Alert, alert)
-import Control.Monad.Eff (Eff)
-import Control.Monad.ST (ST, STRef, writeSTRef, readSTRef, newSTRef, runST)
-import Control.Monad.Eff.Console (CONSOLE, log)
-import Data.Date (Now, now, toEpochMilliseconds)
-import Data.Time (Milliseconds(Milliseconds))
-import Data.Maybe (Maybe(Just, Nothing))
-import Data.Maybe.Unsafe (fromJust)
-import Data.Array (delete, elemIndex, (:), null)
-import Math (pi)
-import Data.Int (toNumber)
 import KeyEvent (Event, eventGetKeyCode, getElementByIdFloat, getElementByIdBool, onKeyUp, onKeyDown)
 
 type MyBindings =
@@ -28,7 +34,7 @@ type MyBindings =
               uUseLighting :: Uniform Bool, uAmbientColor :: Uniform Vec3, uLightingDirection :: Uniform Vec3,
               uDirectionalColor :: Uniform Vec3, uAlpha :: Uniform Float)
 
-shaders :: Shaders (Object MyBindings)
+shaders :: Shaders (Record MyBindings)
 shaders = Shaders
 
   """
@@ -226,7 +232,7 @@ type State bindings = {
                 currentlyPressedKeys :: Array Int
               }
 
-main :: Eff (console :: CONSOLE, alert :: Alert, now :: Now) Unit
+main :: Eff (console :: CONSOLE, alert :: Alert, now :: NOW) Unit
 main = do
   runWebGL
     "glcanvas"
@@ -269,7 +275,7 @@ main = do
               onKeyUp (handleKeyU stRef)
               tick stRef
 
-tick :: forall h eff. STRef h (State MyBindings) ->  EffWebGL (st :: ST h, console :: CONSOLE, now :: Now |eff) Unit
+tick :: forall h eff. STRef h (State MyBindings) ->  EffWebGL (st :: ST h, console :: CONSOLE, now :: NOW |eff) Unit
 tick stRef = do
   drawScene stRef
   handleKeys stRef
@@ -279,10 +285,10 @@ tick stRef = do
 unpackMilliseconds :: Milliseconds -> Number
 unpackMilliseconds (Milliseconds n) = n
 
-animate ::  forall h eff . STRef h (State MyBindings) -> EffWebGL (st :: ST h, now :: Now |eff) Unit
+animate ::  forall h eff . STRef h (State MyBindings) -> EffWebGL (st :: ST h, now :: NOW |eff) Unit
 animate stRef = do
   s <- readSTRef stRef
-  timeNow <- liftM1 (unpackMilliseconds <<< toEpochMilliseconds) now
+  timeNow <- liftM1 (unpackMilliseconds <<< unInstant) now
   case s.lastTime of
     Nothing -> writeSTRef stRef (s {lastTime = Just timeNow})
     Just lastt ->
@@ -291,7 +297,7 @@ animate stRef = do
                               xRot = s.xRot + s.xSpeed * elapsed / 1000.0,
                               yRot = s.yRot + s.ySpeed * elapsed / 1000.0
                               })
-  return unit
+  pure unit
 
 drawScene :: forall h eff . STRef h (State MyBindings) -> EffWebGL (st :: ST h |eff) Unit
 drawScene stRef = do
@@ -304,14 +310,13 @@ drawScene stRef = do
   let pMatrix = M.makePerspective 45.0 (toNumber canvasWidth / toNumber canvasHeight) 0.1 100.0
   setUniformFloats s.bindings.uPMatrix (M.toArray pMatrix)
 
-  let mvMatrix =
-      M.rotate (degToRad s.yRot) (V.vec3' [0.0, 1.0, 0.0])
-        $ M.rotate (degToRad s.xRot) (V.vec3' [1.0, 0.0, 0.0])
-          $ M.translate  (V.vec3 0.0 0.0 s.z)
-            $ M.identity
+  let mvMatrix = M.rotate (degToRad s.yRot) (V.vec3' [0.0, 1.0, 0.0])
+                    $ M.rotate (degToRad s.xRot) (V.vec3' [1.0, 0.0, 0.0])
+                      $ M.translate  (V.vec3 0.0 0.0 s.z)
+                        $ M.identity
   setUniformFloats s.bindings.uMVMatrix (M.toArray mvMatrix)
 
-  let nMatrix = fromJust $ normalFromMat4 mvMatrix
+  let nMatrix = unsafePartial $ fromJust $ normalFromMat4 mvMatrix
   setUniformFloats s.bindings.uNMatrix (M.toArray nMatrix)
 
   setBlending s
@@ -321,8 +326,9 @@ drawScene stRef = do
   bindBufAndSetVertexAttr s.cubeVerticesNormal s.bindings.aVertexNormal
   bindBufAndSetVertexAttr s.textureCoords s.bindings.aTextureCoord
   withTexture2D s.texture 0 s.bindings.uSampler 0
-  bindBuf s.cubeVertexIndices
-  drawElements TRIANGLES s.cubeVertexIndices.bufferSize
+      ( do
+          bindBuf s.cubeVertexIndices
+          drawElements TRIANGLES s.cubeVertexIndices.bufferSize)
 
 
 setBlending :: forall eff. (State MyBindings) -> EffWebGL eff Unit
@@ -361,7 +367,7 @@ setLightning s = do
       dg <- getElementByIdFloat "directionalG"
       db <- getElementByIdFloat "directionalB"
       setUniformFloats s.bindings.uDirectionalColor [dr, dg, db]
-    else return unit
+    else pure unit
 
 -- | Convert from radians to degrees.
 radToDeg :: Number -> Number
@@ -377,7 +383,7 @@ handleKeys ::  forall h eff . STRef h (State MyBindings) -> EffWebGL (console ::
 handleKeys stRef = do
   s <- readSTRef stRef
   if null s.currentlyPressedKeys
-    then return unit
+    then pure unit
     else
       let z' = case elemIndex 33 s.currentlyPressedKeys of
                   Just _ ->  s.z - 0.05
@@ -400,7 +406,7 @@ handleKeys stRef = do
       in do
         writeSTRef stRef (s{z=z'',ySpeed=ySpeed'',xSpeed=xSpeed''})
 --        log (show s.currentlyPressedKeys)
-        return unit
+        pure unit
 
 handleKeyD :: forall h eff. STRef h (State MyBindings) -> Event -> Eff (st :: ST h, console :: CONSOLE | eff) Unit
 handleKeyD stRef event = do
@@ -412,7 +418,7 @@ handleKeyD stRef event = do
                   Nothing -> key : s.currentlyPressedKeys
   writeSTRef stRef (s {currentlyPressedKeys = cp})
 --  log (show s.currentlyPressedKeys)
-  return unit
+  pure unit
 
 handleKeyU :: forall h eff. STRef h (State MyBindings) -> Event -> Eff (st :: ST h, console :: CONSOLE | eff) Unit
 handleKeyU stRef event = do
@@ -420,8 +426,8 @@ handleKeyU stRef event = do
   let key = eventGetKeyCode event
   s <- readSTRef stRef
   case elemIndex key s.currentlyPressedKeys of
-    Nothing ->  return unit
+    Nothing ->  pure unit
     Just _ -> do
       writeSTRef stRef (s {currentlyPressedKeys = delete key s.currentlyPressedKeys})
       -- log (show s.currentlyPressedKeys)
-      return unit
+      pure unit

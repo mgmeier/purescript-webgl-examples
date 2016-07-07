@@ -1,6 +1,21 @@
 module Example9 where
 
-import Prelude (Unit, unit, return, bind, (+), (-), (*), (/), ($), (<<<), liftM1, show, (++), (==), (<), negate)
+import Prelude
+import Control.Monad.Eff (Eff)
+import Control.Monad.Eff.Random (RANDOM, random)
+import Control.Monad.ST (ST, STRef, writeSTRef, readSTRef, modifySTRef, newSTRef, runST)
+import Control.Monad.Eff.Console (CONSOLE, log)
+import Data.Tuple (Tuple(Tuple), uncurry)
+import Data.Foldable (for_)
+import Control.Monad.Eff.Now (NOW, now)
+import Data.DateTime.Instant (unInstant)
+import Data.Time.Duration (Milliseconds(Milliseconds))
+import Data.Maybe (Maybe(Just, Nothing))
+import Data.Array (delete, elemIndex, (:), null, reverse, length, zip, (..))
+import Math (pi)
+import Data.Int (toNumber)
+import Partial.Unsafe (unsafePartial)
+
 import Graphics.WebGLAll (EffWebGL, WebGLTex, Buffer, WebGLProg, WebGLContext, Vec3, Uniform, Sampler2D, Mat4, Vec2, Attribute,
     BlendingFactor(ONE, SRC_ALPHA), Capacity(BLEND), Mask(DEPTH_BUFFER_BIT, COLOR_BUFFER_BIT), Mode(TRIANGLE_STRIP), Shaders(Shaders),
     TexFilterSpec(MIPMAP), drawArr, setUniformFloats, withTexture2D, bindBufAndSetVertexAttr, enable, blendFunc, clear, viewport,
@@ -10,22 +25,9 @@ import Data.Matrix4 (Mat4, identity, translate, rotate, makePerspective) as M
 import Data.Vector3 as V
 import Data.ArrayBuffer.Types as T
 import Control.Monad.Eff.Alert (Alert, alert)
-import Extensions (mapM)
-import Control.Monad.Eff (Eff)
-import Control.Monad.Eff.Random (RANDOM, random)
-import Control.Monad (when)
-import Control.Monad.ST (ST, STRef, writeSTRef, readSTRef, modifySTRef, newSTRef, runST)
-import Control.Monad.Eff.Console (CONSOLE, log)
-import Data.Tuple (Tuple(Tuple), uncurry)
-import Data.Foldable (for_)
-import Data.Date (Now, now, toEpochMilliseconds)
-import Data.Time (Milliseconds(Milliseconds))
-import Data.Maybe (Maybe(Just, Nothing))
-import Data.Array (delete, elemIndex, (:), null, reverse, length, zip, (..), replicateM)
-import Math (pi)
-import Data.Int (toNumber)
+import Extensions (mapM, replicateM)
 import KeyEvent (Event, eventGetKeyCode, getElementByIdBool, onKeyUp, onKeyDown)
-import Data.Array.Unsafe (unsafeIndex)
+import Data.Array.Partial (unsafeIndex)
 
 starCount :: Int
 starCount   = 50
@@ -41,7 +43,7 @@ type MyBindings =
               , uColor          :: Uniform Vec3
               )
 
-shaders :: Shaders (Object MyBindings)
+shaders :: Shaders (Record MyBindings)
 shaders = Shaders
 
   """
@@ -144,14 +146,16 @@ starCreate x y =
 starRANDOMiseColors :: forall eff . Star -> Eff (random :: RANDOM| eff) Star
 starRANDOMiseColors star = do
     colors <- replicateM 6 random
-    return star
-        { r             = colors `unsafeIndex` 0
-        , g             = colors `unsafeIndex` 1
-        , b             = colors `unsafeIndex` 2
-        , twinkleR      = colors `unsafeIndex` 3
-        , twinkleG      = colors `unsafeIndex` 4
-        , twinkleB      = colors `unsafeIndex` 5
+    pure star
+        { r             = colors `index` 0
+        , g             = colors `index` 1
+        , b             = colors `index` 2
+        , twinkleR      = colors `index` 3
+        , twinkleG      = colors `index` 4
+        , twinkleB      = colors `index` 5
         }
+  where
+    index a b = unsafePartial $ unsafeIndex a b
 
 starAnimate :: forall eff . Int -> Star -> EffWebGL (random :: RANDOM |eff) Star
 starAnimate elapsedTime star = do
@@ -162,7 +166,7 @@ starAnimate elapsedTime star = do
             }
     if star'.dist < 0.0
         then starRANDOMiseColors star' {dist = star'.dist + 5.0}
-        else return star'
+        else pure star'
   where
     step = (toNumber elapsedTime *  60.0) / 1000.0
 
@@ -187,7 +191,7 @@ starDraw s mvMatrix twinkle (Tuple star mySpin) = do
 
 
 
-main :: Eff (console :: CONSOLE, alert :: Alert, now :: Now, random :: RANDOM) Unit
+main :: Eff (console :: CONSOLE, alert :: Alert, now :: NOW, random :: RANDOM) Unit
 main = do
   runWebGL
     "glcanvas"
@@ -228,34 +232,34 @@ main = do
                   onKeyUp (handleKeyU stRef)
                   tick stRef
 
-tick :: forall h eff. STRef h (State MyBindings) ->  EffWebGL (st :: ST h, console :: CONSOLE, now :: Now, random :: RANDOM |eff) Unit
+tick :: forall h eff. STRef h (State MyBindings) ->  EffWebGL (st :: ST h, console :: CONSOLE, now :: NOW, random :: RANDOM |eff) Unit
 tick stRef = do
-  timeBefore <- liftM1 (unpackMilliseconds <<< toEpochMilliseconds) now
+  timeBefore <- liftM1 (unpackMilliseconds <<< unInstant) now
   drawScene stRef
   handleKeys stRef
   animate stRef
-  timeAfter <- liftM1 (unpackMilliseconds <<< toEpochMilliseconds) now
+  timeAfter <- liftM1 (unpackMilliseconds <<< unInstant) now
   modifySTRef stRef \s -> s {benchTime = s.benchTime + (timeAfter - timeBefore)}
   state <- readSTRef stRef
   if state.benchCount < 1000
     then do
             modifySTRef stRef (\s -> s {benchCount = s.benchCount + 1})
-            return unit
+            pure unit
     else if state.benchCount == 1000
         then do
-                log ("Benchmark 1000 cycles time in milliseconds: " ++ show state.benchTime)
+                log ("Benchmark 1000 cycles time in milliseconds: " <> show state.benchTime)
                 modifySTRef stRef (\s -> s {benchCount = s.benchCount + 1})
-                return unit
-        else return unit
+                pure unit
+        else pure unit
   requestAnimationFrame (tick stRef)
 
 unpackMilliseconds :: Milliseconds -> Number
 unpackMilliseconds (Milliseconds n) = n
 
-animate ::  forall h eff . STRef h (State MyBindings) -> EffWebGL (st :: ST h, now :: Now, random :: RANDOM |eff) Unit
+animate ::  forall h eff . STRef h (State MyBindings) -> EffWebGL (st :: ST h, now :: NOW, random :: RANDOM |eff) Unit
 animate stRef = do
   s <- readSTRef stRef
-  timeNow <- liftM1 (unpackMilliseconds <<< toEpochMilliseconds) now
+  timeNow <- liftM1 (unpackMilliseconds <<< unInstant) now
   case s.lastTime of
     Nothing -> writeSTRef stRef (s {lastTime = Just timeNow})
     Just lastt ->
@@ -265,7 +269,7 @@ animate stRef = do
       in do
         stars' <- mapM (starAnimate s.benchCount) s.stars
         writeSTRef stRef (s {lastTime = Just timeNow, spin=spin', stars=stars'})
-  return unit
+  pure unit
 
 drawScene :: forall h eff . STRef h (State MyBindings) -> EffWebGL (st :: ST h |eff) Unit
 drawScene stRef = do
@@ -281,13 +285,13 @@ drawScene stRef = do
   bindBufAndSetVertexAttr s.starVertices s.bindings.aVertexPosition
   bindBufAndSetVertexAttr s.textureCoords s.bindings.aTextureCoord
   withTexture2D s.texture 0 s.bindings.uSampler 0
+    ( do
+          let   pMatrix = M.makePerspective 45.0 (toNumber canvasWidth / toNumber canvasHeight) 0.1 100.0
+                mvMatrix = M.rotate (degToRad s.tilt) (V.vec3' [1.0, 0.0, 0.0]) $ M.translate (V.vec3 0.0 0.0 s.z) $ M.identity
+                ss = zip s.stars (iterateN (_ + spinStep) (length s.stars) s.spin)
 
-  let   pMatrix = M.makePerspective 45.0 (toNumber canvasWidth / toNumber canvasHeight) 0.1 100.0
-        mvMatrix = M.rotate (degToRad s.tilt) (V.vec3' [1.0, 0.0, 0.0]) $ M.translate (V.vec3 0.0 0.0 s.z) $ M.identity
-        ss = zip s.stars (iterateN (+spinStep) (length s.stars) s.spin)
-
-  setUniformFloats s.bindings.uPMatrix (M.toArray pMatrix)
-  for_ ss $ starDraw s mvMatrix twinkle
+          setUniformFloats s.bindings.uPMatrix (M.toArray pMatrix)
+          for_ ss $ starDraw s mvMatrix twinkle)
 
 drawStar :: forall eff. State MyBindings -> M.Mat4 -> EffWebGL eff Unit
 drawStar s mvMatrix = do
@@ -319,7 +323,7 @@ handleKeys ::  forall h eff . STRef h (State MyBindings) -> EffWebGL (console ::
 handleKeys stRef = do
   s <- readSTRef stRef
   if null s.currentlyPressedKeys
-    then return unit
+    then pure unit
     else
       let z' = case elemIndex 33 s.currentlyPressedKeys of
                   Just _ -> s.z - 0.1
@@ -336,7 +340,7 @@ handleKeys stRef = do
       in do
         writeSTRef stRef (s{z=z'',tilt=tilt''})
         -- log (show s.currentlyPressedKeys)
-        return unit
+        pure unit
 
 handleKeyD :: forall h eff. STRef h (State MyBindings) -> Event -> Eff (st :: ST h, console :: CONSOLE | eff) Unit
 handleKeyD stRef event = do
@@ -348,7 +352,7 @@ handleKeyD stRef event = do
                   Nothing -> key : s.currentlyPressedKeys
   writeSTRef stRef (s {currentlyPressedKeys = cp})
 --  log (show s.currentlyPressedKeys)
-  return unit
+  pure unit
 
 handleKeyU :: forall h eff. STRef h (State MyBindings) -> Event -> Eff (st :: ST h, console :: CONSOLE | eff) Unit
 handleKeyU stRef event = do
@@ -356,8 +360,8 @@ handleKeyU stRef event = do
   let key = eventGetKeyCode event
   s <- readSTRef stRef
   case elemIndex key s.currentlyPressedKeys of
-    Nothing ->  return unit
+    Nothing ->  pure unit
     Just _ -> do
       writeSTRef stRef (s {currentlyPressedKeys = delete key s.currentlyPressedKeys})
       -- log (show s.currentlyPressedKeys)
-      return unit
+      pure unit

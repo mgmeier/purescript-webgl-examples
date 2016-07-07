@@ -1,6 +1,15 @@
 module Example3 where
 
-import Prelude (Unit, (*), (/), bind, negate, ($), (+), return, (-), (<<<), liftM1, unit)
+import Prelude
+import Control.Monad.Eff (Eff)
+import Control.Monad.Eff.Console (CONSOLE, log)
+import Control.Monad.Eff.Now (NOW, now)
+import Data.DateTime.Instant (unInstant)
+import Data.Time.Duration (Milliseconds(Milliseconds))
+import Data.Maybe (Maybe(Just, Nothing))
+import Math (pi)
+import Data.Int (toNumber)
+
 import Graphics.WebGLAll (EffWebGL, Buffer, Mat4, Uniform, Vec3, Attribute, WebGLProg, WebGLContext, Capacity(DEPTH_TEST),
                         Mask(DEPTH_BUFFER_BIT, COLOR_BUFFER_BIT), Mode(TRIANGLE_STRIP, TRIANGLES), Shaders(Shaders),
                         drawArr, bindBufAndSetVertexAttr, setUniformFloats, clear, viewport, getCanvasHeight, getCanvasWidth,
@@ -10,13 +19,6 @@ import Data.Matrix (toArray) as M
 import Data.Vector3 as V3
 import Control.Monad.Eff.Alert (Alert, alert)
 import Data.ArrayBuffer.Types as T
-import Control.Monad.Eff (Eff)
-import Control.Monad.Eff.Console (CONSOLE, log)
-import Data.Date (Now, now, toEpochMilliseconds)
-import Data.Time (Milliseconds(Milliseconds))
-import Data.Maybe (Maybe(Just, Nothing))
-import Math (pi)
-import Data.Int (toNumber)
 
 shaders :: Shaders {aVertexPosition :: Attribute Vec3, aVertexColor :: Attribute Vec3,
                       uPMatrix :: Uniform Mat4, uMVMatrix:: Uniform Mat4}
@@ -62,7 +64,7 @@ type State = {
                 rSquare :: Number
             }
 
-main :: Eff (console :: CONSOLE, alert :: Alert, now :: Now) Unit
+main :: Eff (console :: CONSOLE, alert :: Alert, now :: NOW) Unit
 main =
   runWebGL
     "glcanvas"
@@ -108,29 +110,29 @@ main =
                       }
           tick state
 
-tick :: forall eff. State ->  EffWebGL (now :: Now |eff) Unit
+tick :: forall eff. State ->  EffWebGL (now :: NOW |eff) Unit
 tick state = do
 --  trace ("tick: " ++ show state.lastTime)
   drawScene state
   state' <- animate state
-  return unit
+  pure unit
   requestAnimationFrame (tick state')
 
 unpackMilliseconds :: Milliseconds -> Number
 unpackMilliseconds (Milliseconds n) = n
 
-animate ::  forall eff. State -> EffWebGL (now :: Now |eff) State
+animate ::  forall eff. State -> EffWebGL (now :: NOW |eff) State
 animate state = do
-  timeNow <- liftM1 (unpackMilliseconds <<< toEpochMilliseconds) now
+  timeNow <- liftM1 (unpackMilliseconds <<< unInstant) now
   case state.lastTime of
-    Nothing -> return state {lastTime = Just timeNow}
+    Nothing -> pure state {lastTime = Just timeNow}
     Just lastt ->
       let elapsed = timeNow - lastt
-      in return state {lastTime = Just timeNow,
+      in pure state {lastTime = Just timeNow,
                        rTri = state.rTri + (90.0 * elapsed) / 1000.0,
                        rSquare = state.rSquare + (75.0 * elapsed) / 1000.0}
 
-drawScene :: forall eff. State  -> EffWebGL (now :: Now |eff) Unit
+drawScene :: forall eff. State  -> EffWebGL (now :: NOW |eff) Unit
 drawScene s = do
       canvasWidth <- getCanvasWidth s.context
       canvasHeight <- getCanvasHeight s.context
@@ -139,18 +141,16 @@ drawScene s = do
 
       let pMatrix = M.makePerspective 45.0 (toNumber canvasWidth / toNumber canvasHeight) 0.1 100.0
       setUniformFloats s.uPMatrix (M.toArray pMatrix)
-      let mvMatrix =
-          M.rotate (degToRad s.rTri) (V3.vec3' [0.0, 1.0, 0.0])
-            $ M.translate  (V3.vec3 (-1.5) 0.0 (-7.0)) M.identity
+      let mvMatrix = M.rotate (degToRad s.rTri) (V3.vec3' [0.0, 1.0, 0.0])
+                        $ M.translate  (V3.vec3 (-1.5) 0.0 (-7.0)) M.identity
 
       setUniformFloats s.uMVMatrix (M.toArray mvMatrix)
 
       bindBufAndSetVertexAttr s.buf1Colors s.aVertexColor
       drawArr TRIANGLES s.buf1 s.aVertexPosition
 
-      let mvMatrix' =
-          M.rotate (degToRad s.rSquare) (V3.vec3' [1.0, 0.0, 0.0])
-            $ M.translate  (V3.vec3 (1.5) 0.0 (-7.0)) M.identity
+      let mvMatrix' = M.rotate (degToRad s.rSquare) (V3.vec3' [1.0, 0.0, 0.0])
+                        $ M.translate  (V3.vec3 (1.5) 0.0 (-7.0)) M.identity
       setUniformFloats s.uMVMatrix (M.toArray mvMatrix')
 
       bindBufAndSetVertexAttr s.buf2Colors s.aVertexColor

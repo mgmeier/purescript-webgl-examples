@@ -1,6 +1,16 @@
 module Example4 where
 
-import Prelude (Unit, (*), (/), bind, negate, ($), (+), return, (-), (<<<), liftM1)
+import Prelude
+import Control.Monad.Eff (Eff)
+import Control.Monad.Eff.Console (CONSOLE, log)
+import Control.Monad.Eff.Now (NOW, now)
+import Data.DateTime.Instant (unInstant)
+import Data.Time.Duration (Milliseconds(Milliseconds))
+import Data.Maybe (Maybe(Just, Nothing))
+import Data.Array (concatMap, concat)
+import Math (pi)
+import Data.Int (toNumber)
+
 import Graphics.WebGLAll (EffWebGL, Buffer, Mat4, Uniform, Vec3, Attribute, WebGLProg, WebGLContext, BufferTarget(ELEMENT_ARRAY_BUFFER), Capacity(DEPTH_TEST), Mask(DEPTH_BUFFER_BIT, COLOR_BUFFER_BIT), Mode(TRIANGLES), Shaders(Shaders), drawElements, bindBuf, bindBufAndSetVertexAttr, setUniformFloats, drawArr, clear, viewport, getCanvasHeight, getCanvasWidth, requestAnimationFrame, enable, clearColor, makeBuffer, makeBufferFloat, withShaders, runWebGL)
 import Data.Matrix4 (identity, translate, rotate, makePerspective) as M
 import Data.Matrix (toArray) as M
@@ -8,14 +18,6 @@ import Data.Vector3 as V3
 import Control.Monad.Eff.Alert (Alert, alert)
 import Data.ArrayBuffer.Types (Uint16, Float32) as T
 import Data.TypedArray (asUint16Array) as T
-import Control.Monad.Eff (Eff)
-import Control.Monad.Eff.Console (CONSOLE, log)
-import Data.Date (Now, now, toEpochMilliseconds)
-import Data.Time (Milliseconds(Milliseconds))
-import Data.Maybe (Maybe(Just, Nothing))
-import Data.Array (concatMap, concat)
-import Math (pi)
-import Data.Int (toNumber)
 
 shaders :: Shaders {aVertexPosition :: Attribute Vec3, aVertexColor :: Attribute Vec3,
                       uPMatrix :: Uniform Mat4, uMVMatrix:: Uniform Mat4}
@@ -62,7 +64,7 @@ type State = {
                 rCube :: Number
               }
 
-main :: Eff (console :: CONSOLE, alert :: Alert, now :: Now) Unit
+main :: Eff (console :: CONSOLE, alert :: Alert, now :: NOW) Unit
 main =
   runWebGL
     "glcanvas"
@@ -182,7 +184,7 @@ main =
                       }
           tick state
 
-tick :: forall eff. State ->  EffWebGL (console :: CONSOLE, now :: Now |eff) Unit
+tick :: forall eff. State ->  EffWebGL (console :: CONSOLE, now :: NOW |eff) Unit
 tick state = do
 --  log ("tick: " ++ show state.lastTime)
   drawScene state
@@ -192,18 +194,18 @@ tick state = do
 unpackMilliseconds :: Milliseconds -> Number
 unpackMilliseconds (Milliseconds n) = n
 
-animate ::  forall eff. State -> EffWebGL (now :: Now |eff) State
+animate ::  forall eff. State -> EffWebGL (now :: NOW |eff) State
 animate state = do
-  timeNow <- liftM1 (unpackMilliseconds <<< toEpochMilliseconds) now
+  timeNow <- liftM1 (unpackMilliseconds <<< unInstant) now
   case state.lastTime of
-    Nothing -> return state {lastTime = Just timeNow}
+    Nothing -> pure state {lastTime = Just timeNow}
     Just lastt ->
       let elapsed = timeNow - lastt
-      in return state {lastTime = Just timeNow,
+      in pure state {lastTime = Just timeNow,
                        rPyramid = state.rPyramid + (90.0 * elapsed) / 1000.0,
                        rCube = state.rCube + (75.0 * elapsed) / 1000.0}
 
-drawScene :: forall eff. State -> EffWebGL (now :: Now |eff) Unit
+drawScene :: forall eff. State -> EffWebGL (now :: NOW |eff) Unit
 drawScene s = do
       canvasWidth <- getCanvasWidth s.context
       canvasHeight <- getCanvasHeight s.context
@@ -213,20 +215,18 @@ drawScene s = do
 -- The pyramid
       let pMatrix = M.makePerspective 45.0 (toNumber canvasWidth / toNumber canvasHeight) 0.1 100.0
       setUniformFloats s.uPMatrix (M.toArray pMatrix)
-      let mvMatrix =
-          M.rotate (degToRad s.rPyramid) (V3.vec3' [0.0, 1.0, 0.0])
-            $ M.translate  (V3.vec3 (-1.5) 0.0 (-8.0))
-              $ M.identity
+      let mvMatrix = M.rotate (degToRad s.rPyramid) (V3.vec3' [0.0, 1.0, 0.0])
+                        $ M.translate  (V3.vec3 (-1.5) 0.0 (-8.0))
+                          $ M.identity
 
       setUniformFloats s.uMVMatrix (M.toArray mvMatrix)
       bindBufAndSetVertexAttr s.pyramidColors s.aVertexColor
       drawArr TRIANGLES s.pyramidVertices s.aVertexPosition
 
 -- The cube
-      let mvMatrix' =
-          M.rotate (degToRad s.rCube) (V3.vec3' [1.0, 1.0, 1.0])
-            $ M.translate  (V3.vec3 (1.5) 0.0 (-8.0))
-              $ M.identity
+      let mvMatrix' = M.rotate (degToRad s.rCube) (V3.vec3' [1.0, 1.0, 1.0])
+                        $ M.translate  (V3.vec3 (1.5) 0.0 (-8.0))
+                          $ M.identity
       setUniformFloats s.uMVMatrix (M.toArray mvMatrix')
 
       bindBufAndSetVertexAttr s.cubeColors s.aVertexColor

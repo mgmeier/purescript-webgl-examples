@@ -22,10 +22,14 @@
     "package.json"
   ],
   "dependencies": {
-    "purescript-webgl" : "*",
-    "purescript-datetime" : "*",
-    "purescript-random" : "*",
-    "purescript-extensions" : "*",
-    "purescript-console" : "*"
+    "purescript-webgl": "^1.1.0",
+    "purescript-datetime": "^1.0.0",
+    "purescript-random": "^1.0.0",
+    "purescript-extensions": "^1.0.0",
+    "purescript-console": "^1.0.0",
+    "purescript-now": "^1.0.0",
+    "purescript-matrix": "^1.0.0",
+    "purescript-vector": "^1.0.1",
+    "purescript-typedarray": "^1.0.0"
   }
 }

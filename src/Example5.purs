@@ -1,7 +1,16 @@
 
 module Example5 where
 
-import Prelude (Unit, (*), (/), bind, negate, ($), (+), return, (-), (<<<), liftM1)
+import Prelude
+import Control.Monad.Eff (Eff)
+import Control.Monad.Eff.Console (CONSOLE, log)
+import Control.Monad.Eff.Now (NOW, now)
+import Data.DateTime.Instant (unInstant)
+import Data.Time.Duration (Milliseconds(Milliseconds))
+import Data.Maybe (Maybe(Just, Nothing))
+import Math (pi)
+import Data.Int (toNumber)
+
 import Graphics.WebGLAll (EffWebGL, WebGLTex, Buffer, Sampler2D, Uniform, Mat4, Vec2, Attribute, Vec3, WebGLProg, WebGLContext,
                         BufferTarget(ELEMENT_ARRAY_BUFFER), Capacity(DEPTH_TEST), Mask(DEPTH_BUFFER_BIT, COLOR_BUFFER_BIT),
                         Mode(TRIANGLES), Shaders(Shaders), TexFilterSpec(MIPMAP), drawElements, bindBuf, withTexture2D,
@@ -13,13 +22,7 @@ import Data.Vector3 as V3
 import Control.Monad.Eff.Alert (Alert, alert)
 import Data.ArrayBuffer.Types (Uint16, Float32) as T
 import Data.TypedArray (asUint16Array) as T
-import Control.Monad.Eff (Eff)
-import Control.Monad.Eff.Console (CONSOLE, log)
-import Data.Date (Now, now, toEpochMilliseconds)
-import Data.Time (Milliseconds(Milliseconds))
-import Data.Maybe (Maybe(Just, Nothing))
-import Math (pi)
-import Data.Int (toNumber)
+
 
 shaders :: Shaders {aVertexPosition :: Attribute Vec3, aTextureCoord :: Attribute Vec2,
                       uPMatrix :: Uniform Mat4, uMVMatrix:: Uniform Mat4, uSampler :: Uniform Sampler2D}
@@ -72,7 +75,7 @@ type State =
         rot :: Number
     }
 
-main :: Eff (console :: CONSOLE, alert :: Alert, now :: Now) Unit
+main :: Eff (console :: CONSOLE, alert :: Alert, now :: NOW) Unit
 main = do
 --  let stupid = Mat3 "stupid"
   runWebGL
@@ -188,7 +191,7 @@ main = do
                 }
 
 
-tick :: forall eff. State  ->  EffWebGL (console :: CONSOLE, now :: Now |eff) Unit
+tick :: forall eff. State  ->  EffWebGL (console :: CONSOLE, now :: NOW |eff) Unit
 tick state = do
 --  log ("tick: " ++ show state.lastTime)
   drawScene state
@@ -198,18 +201,18 @@ tick state = do
 unpackMilliseconds :: Milliseconds -> Number
 unpackMilliseconds (Milliseconds n) = n
 
-animate ::  forall eff. State -> EffWebGL (now :: Now |eff) State
+animate ::  forall eff. State -> EffWebGL (now :: NOW |eff) State
 animate state = do
-  timeNow <- liftM1 (unpackMilliseconds <<< toEpochMilliseconds) now
+  timeNow <- liftM1 (unpackMilliseconds <<< unInstant) now
   case state.lastTime of
-    Nothing -> return state {lastTime = Just timeNow}
+    Nothing -> pure state {lastTime = Just timeNow}
     Just lastt ->
       let elapsed = timeNow - lastt
-      in return state {lastTime = Just timeNow,
+      in pure state {lastTime = Just timeNow,
                        rot = state.rot + (90.0 * elapsed) / 1000.0
                        }
 
-drawScene :: forall eff. State -> EffWebGL (now :: Now |eff) Unit
+drawScene :: forall eff. State -> EffWebGL (now :: NOW | eff) Unit
 drawScene s = do
       canvasWidth <- getCanvasWidth s.context
       canvasHeight <- getCanvasHeight s.context
@@ -230,10 +233,10 @@ drawScene s = do
       bindBufAndSetVertexAttr s.cubeVertices s.aVertexPosition
       bindBufAndSetVertexAttr s.textureCoords s.aTextureCoord
 
-      withTexture2D s.texture 0 s.uSampler 0
-
-      bindBuf s.cubeVertexIndices
-      drawElements TRIANGLES s.cubeVertexIndices.bufferSize
+      withTexture2D s.texture 0 s.uSampler 0 (do
+          bindBuf s.cubeVertexIndices
+          drawElements TRIANGLES s.cubeVertexIndices.bufferSize
+      )
 
 -- | Convert from radians to degrees.
 radToDeg :: Number -> Number
