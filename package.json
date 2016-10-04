@@ -1,7 +1,7 @@
 {
   "private": true,
   "devDependencies": {
-    "pulp": "^9.0.1",
+    "pulp": "^9.0.1"
   },
   "scripts": {
     "bench": "./benchmarks/run.sh"
