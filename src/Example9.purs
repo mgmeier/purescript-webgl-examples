@@ -11,7 +11,7 @@ import Control.Monad.Eff.Now (NOW, now)
 import Data.DateTime.Instant (unInstant)
 import Data.Time.Duration (Milliseconds(Milliseconds))
 import Data.Maybe (Maybe(Just, Nothing))
-import Data.Array (delete, elemIndex, (:), null, reverse, length, zip, (..))
+import Data.Array (delete, elemIndex, (:), null, reverse, length, zip, (..), unsafeIndex)
 import Math (pi)
 import Data.Int (toNumber)
 import Partial.Unsafe (unsafePartial)
@@ -27,7 +27,6 @@ import Data.ArrayBuffer.Types as T
 import Control.Monad.Eff.Alert (Alert, alert)
 import Extensions (mapM, replicateM)
 import KeyEvent (Event, eventGetKeyCode, getElementByIdBool, onKeyUp, onKeyDown)
-import Data.Array.Partial (unsafeIndex)
 
 starCount :: Int
 starCount   = 50
