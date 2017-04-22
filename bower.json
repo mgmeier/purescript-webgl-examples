@@ -23,7 +23,7 @@
   ],
   "dependencies": {
     "purescript-webgl": "^2.0.0",
-    "purescript-clock": "^0.1.0",
+    "purescript-clock": "^1.0.0",
     "purescript-random": "^3.0.0",
     "purescript-extensions": "^2.0.0",
     "purescript-console": "^3.0.0",
