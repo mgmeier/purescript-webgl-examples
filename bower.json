@@ -29,7 +29,7 @@
     "purescript-console": "^3.0.0",
     "purescript-matrix": "^2.0.0",
     "purescript-vector": "^2.0.0",
-    "purescript-typedarray": "^2.0.0"
+    "purescript-typedarray": "^1.0.0"
   },
   "resolutions": {
     "purescript-arraybuffer-types": "^2.0.0"
