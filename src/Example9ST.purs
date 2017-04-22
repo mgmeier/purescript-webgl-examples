@@ -7,8 +7,7 @@ import Control.Monad.ST (ST, STRef, writeSTRef, readSTRef, modifySTRef, newSTRef
 import Control.Monad.Eff.Console (CONSOLE, log)
 import Data.Tuple (Tuple(Tuple), uncurry)
 import Data.Foldable (for_)
-import Control.Monad.Eff.Now (NOW, now)
-import Data.DateTime.Instant (unInstant)
+import System.Clock (CLOCK, milliseconds)
 import Data.Time.Duration (Milliseconds(Milliseconds))
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Array (delete, elemIndex, (:), null, reverse, length, zip, (..), unsafeIndex)
@@ -191,7 +190,7 @@ starDraw s twinkle mvMatrix (Tuple star mySpin) = do
     drawStar s mv
 
 
-main :: Eff (console :: CONSOLE, alert :: Alert, now :: NOW, random :: RANDOM) Unit
+main :: Eff (console :: CONSOLE, alert :: Alert, clock :: CLOCK, random :: RANDOM) Unit
 main =
   runWebGL
     "glcanvas"
@@ -232,35 +231,35 @@ main =
                   onKeyUp (handleKeyU stRef)
                   tick stRef
 
-tick :: forall h eff. STRef h (State MyBindings) ->  EffWebGL (st :: ST h, console :: CONSOLE, now :: NOW, random :: RANDOM |eff) Unit
+tick :: forall h eff. STRef h (State MyBindings) ->  EffWebGL (st :: ST h, console :: CONSOLE, clock :: CLOCK, random :: RANDOM |eff) Unit
 tick stRef = do
-  timeBefore <- liftM1 (unpackMilliseconds <<< unInstant) now
+  timeBefore <- milliseconds
   drawScene stRef
   handleKeys stRef
   animate stRef
-  timeAfter <- liftM1 (unpackMilliseconds <<< unInstant) now
-  modifySTRef stRef \s -> s {benchTime = s.benchTime + (timeAfter - timeBefore)}
+  timeAfter <- milliseconds
+  _ <- modifySTRef stRef \s -> s {benchTime = s.benchTime + (timeAfter - timeBefore)}
   state <- readSTRef stRef
   if state.benchCount < 1000
     then do
-            modifySTRef stRef (\s -> s {benchCount = s.benchCount + 1})
+            _ <- modifySTRef stRef (\s -> s {benchCount = s.benchCount + 1})
             requestAnimationFrame (tick stRef)
             pure unit
     else if state.benchCount == 1000
         then do
                 log ("Benchmark 1000 cycles time in milliseconds: " <> show state.benchTime)
-                modifySTRef stRef (\s -> s {benchCount = s.benchCount + 1})
+                _ <- modifySTRef stRef (\s -> s {benchCount = s.benchCount + 1})
                 pure unit
         else pure unit
 
 unpackMilliseconds :: Milliseconds -> Number
 unpackMilliseconds (Milliseconds n) = n
 
-animate ::  forall h eff . STRef h (State MyBindings) -> EffWebGL (st :: ST h, now :: NOW, random :: RANDOM |eff) Unit
+animate ::  forall h eff . STRef h (State MyBindings) -> EffWebGL (st :: ST h, clock :: CLOCK, random :: RANDOM |eff) Unit
 animate stRef = do
   s <- readSTRef stRef
-  timeNow <- liftM1 (unpackMilliseconds <<< unInstant) now
-  case s.lastTime of
+  timeNow <- milliseconds
+  _ <- case s.lastTime of
     Nothing -> writeSTRef stRef (s {lastTime = Just timeNow})
     Just lastt ->
       let
@@ -348,7 +347,7 @@ handleKeys stRef = do
                   Just _ -> tilt' + 2.0
                   Nothing -> tilt'
       in do
-        writeSTRef stRef (s{z=z'',tilt=tilt''})
+        _ <- writeSTRef stRef (s{z=z'',tilt=tilt''})
         -- log (show s.currentlyPressedKeys)
         pure unit
 
@@ -360,7 +359,7 @@ handleKeyD stRef event = do
   let cp = case elemIndex key s.currentlyPressedKeys of
                   Just _ ->  s.currentlyPressedKeys
                   Nothing -> key : s.currentlyPressedKeys
-  writeSTRef stRef (s {currentlyPressedKeys = cp})
+  _ <- writeSTRef stRef (s {currentlyPressedKeys = cp})
 --  log (show s.currentlyPressedKeys)
   pure unit
 
@@ -372,6 +371,6 @@ handleKeyU stRef event = do
   case elemIndex key s.currentlyPressedKeys of
     Nothing ->  pure unit
     Just _ -> do
-      writeSTRef stRef (s {currentlyPressedKeys = delete key s.currentlyPressedKeys})
+      _ <- writeSTRef stRef (s {currentlyPressedKeys = delete key s.currentlyPressedKeys})
       -- log (show s.currentlyPressedKeys)
       pure unit

@@ -4,9 +4,7 @@ module Example5 where
 import Prelude
 import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Console (CONSOLE, log)
-import Control.Monad.Eff.Now (NOW, now)
-import Data.DateTime.Instant (unInstant)
-import Data.Time.Duration (Milliseconds(Milliseconds))
+import System.Clock (CLOCK, milliseconds)
 import Data.Maybe (Maybe(Just, Nothing))
 import Math (pi)
 import Data.Int (toNumber)
@@ -75,7 +73,7 @@ type State =
         rot :: Number
     }
 
-main :: Eff (console :: CONSOLE, alert :: Alert, now :: NOW) Unit
+main :: Eff (console :: CONSOLE, alert :: Alert, clock :: CLOCK) Unit
 main = do
 --  let stupid = Mat3 "stupid"
   runWebGL
@@ -191,19 +189,16 @@ main = do
                 }
 
 
-tick :: forall eff. State  ->  EffWebGL (console :: CONSOLE, now :: NOW |eff) Unit
+tick :: forall eff. State  ->  EffWebGL (console :: CONSOLE, clock :: CLOCK |eff) Unit
 tick state = do
 --  log ("tick: " ++ show state.lastTime)
   drawScene state
   state' <- animate state
   requestAnimationFrame (tick state')
 
-unpackMilliseconds :: Milliseconds -> Number
-unpackMilliseconds (Milliseconds n) = n
-
-animate ::  forall eff. State -> EffWebGL (now :: NOW |eff) State
+animate ::  forall eff. State -> EffWebGL (clock :: CLOCK |eff) State
 animate state = do
-  timeNow <- liftM1 (unpackMilliseconds <<< unInstant) now
+  timeNow <- milliseconds
   case state.lastTime of
     Nothing -> pure state {lastTime = Just timeNow}
     Just lastt ->
@@ -212,7 +207,7 @@ animate state = do
                        rot = state.rot + (90.0 * elapsed) / 1000.0
                        }
 
-drawScene :: forall eff. State -> EffWebGL (now :: NOW | eff) Unit
+drawScene :: forall eff. State -> EffWebGL (clock :: CLOCK | eff) Unit
 drawScene s = do
       canvasWidth <- getCanvasWidth s.context
       canvasHeight <- getCanvasHeight s.context

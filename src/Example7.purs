@@ -5,9 +5,7 @@ import Control.Monad.Eff.Alert (Alert, alert)
 import Control.Monad.Eff (Eff)
 import Control.Monad.ST (ST, STRef, writeSTRef, readSTRef, newSTRef, runST)
 import Control.Monad.Eff.Console (CONSOLE, log)
-import Control.Monad.Eff.Now (NOW, now)
-import Data.DateTime.Instant (unInstant)
-import Data.Time.Duration (Milliseconds(Milliseconds))
+import System.Clock (CLOCK, milliseconds)
 import Data.Maybe (Maybe(Just, Nothing), fromJust)
 import Data.Array (delete, elemIndex, (:), null)
 import Math (pi)
@@ -230,7 +228,7 @@ type State bindings = {
                 currentlyPressedKeys :: Array Int
               }
 
-main :: Eff (console :: CONSOLE, alert :: Alert, now :: NOW) Unit
+main :: Eff (console :: CONSOLE, alert :: Alert, clock :: CLOCK) Unit
 main = do
   runWebGL
     "glcanvas"
@@ -273,21 +271,19 @@ main = do
               onKeyUp (handleKeyU stRef)
               tick stRef
 
-tick :: forall h eff. STRef h (State MyBindings) ->  EffWebGL (st :: ST h, console :: CONSOLE, now :: NOW |eff) Unit
+tick :: forall h eff. STRef h (State MyBindings) ->  EffWebGL (st :: ST h, console :: CONSOLE, clock :: CLOCK |eff) Unit
 tick stRef = do
   drawScene stRef
   handleKeys stRef
   animate stRef
   requestAnimationFrame (tick stRef)
 
-unpackMilliseconds :: Milliseconds -> Number
-unpackMilliseconds (Milliseconds n) = n
 
-animate ::  forall h eff . STRef h (State MyBindings) -> EffWebGL (st :: ST h, now :: NOW |eff) Unit
+animate ::  forall h eff . STRef h (State MyBindings) -> EffWebGL (st :: ST h, clock :: CLOCK |eff) Unit
 animate stRef = do
   s <- readSTRef stRef
-  timeNow <- liftM1 (unpackMilliseconds <<< unInstant) now
-  case s.lastTime of
+  timeNow <- milliseconds
+  _ <- case s.lastTime of
     Nothing -> writeSTRef stRef (s {lastTime = Just timeNow})
     Just lastt ->
       let elapsed = timeNow - lastt
@@ -385,7 +381,7 @@ handleKeys stRef = do
                   Just _ ->  xSpeed' + 1.0
                   Nothing -> xSpeed'
       in do
-        writeSTRef stRef (s{z=z'',ySpeed=ySpeed'',xSpeed=xSpeed''})
+        _ <- writeSTRef stRef (s{z=z'',ySpeed=ySpeed'',xSpeed=xSpeed''})
 --        log (show s.currentlyPressedKeys)
         pure unit
 
@@ -397,7 +393,7 @@ handleKeyD stRef event = do
   let cp = case elemIndex key s.currentlyPressedKeys of
                   Just _ ->  s.currentlyPressedKeys
                   Nothing -> key : s.currentlyPressedKeys
-  writeSTRef stRef (s {currentlyPressedKeys = cp})
+  _ <- writeSTRef stRef (s {currentlyPressedKeys = cp})
 --  log (show s.currentlyPressedKeys)
   pure unit
 
@@ -409,6 +405,6 @@ handleKeyU stRef event = do
   case elemIndex key s.currentlyPressedKeys of
     Nothing ->  pure unit
     Just _ -> do
-      writeSTRef stRef (s {currentlyPressedKeys = delete key s.currentlyPressedKeys})
+      _ <- writeSTRef stRef (s {currentlyPressedKeys = delete key s.currentlyPressedKeys})
       -- log (show s.currentlyPressedKeys)
       pure unit
