@@ -27,7 +27,7 @@
     "purescript-random": "^3.0.0",
     "purescript-extensions": "^2.0.0",
     "purescript-console": "^3.0.0",
-    "purescript-matrix": "^2.0.0",
+    "purescript-matrix": "^1.0.0",
     "purescript-vector": "^2.0.0",
     "purescript-typedarray": "^1.0.0"
   },
