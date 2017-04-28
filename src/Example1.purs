@@ -1,6 +1,6 @@
 module Example1 where
 
-import Prelude (Unit, bind, negate, (/))
+import Prelude
 import Graphics.WebGLAll (Mat4, Uniform, Vec3, Attribute, Capacity(DEPTH_TEST), Mask(DEPTH_BUFFER_BIT, COLOR_BUFFER_BIT), Mode(TRIANGLE_STRIP, TRIANGLES), Shaders(Shaders), drawArr, makeBufferFloat, setUniformFloats, clear, viewport, getCanvasHeight, getCanvasWidth, enable, clearColor, withShaders, runWebGL)
 import Data.Matrix4 (translate, identity, makePerspective) as M
 import Data.Matrix (toArray) as M

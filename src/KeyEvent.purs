@@ -3,7 +3,7 @@ module KeyEvent where
 import Prelude (Unit)
 import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.WebGL (EffWebGL, WebGl)
-foreign import data Event :: *
+foreign import data Event :: Type
 
 foreign import onKeyDown ::  forall eff. (Event -> Eff (webgl :: WebGl | eff) Unit)
     -> Eff (webgl :: WebGl | eff) Unit
