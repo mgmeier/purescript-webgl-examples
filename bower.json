@@ -23,16 +23,16 @@
   ],
   "dependencies": {
     "purescript-webgl": "^2.0.1",
-    "purescript-clock": "^1.0.0",
+    "purescript-clock": "^1.0.1",
     "purescript-random": "^3.0.0",
-    "purescript-extensions": "^2.0.0",
+    "purescript-extensions": "^2.2.0",
     "purescript-console": "^3.0.0",
-    "purescript-matrix": "^2.0.0",
+    "purescript-matrix": "^2.1.0",
     "purescript-vector": "^2.0.0",
-    "purescript-typedarray": "^2.0.0",
-    "purescript-datetime" : "^3.0.0"
+    "purescript-typedarray": "^2.1.0"
   },
   "resolutions": {
+    "purescript-extensions": "^2.2.0",
     "purescript-arraybuffer-types": "^2.0.0"
   }
 }
